@@ -279,6 +279,25 @@ body {
 	display: block;
 }
 
+.mobile-only {
+	display: none;
+}
+
+#font-decrease, #font-increase {
+	color: #555;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	flex-shrink: 0;
+	padding: 2px 4px;
+	font-size: 12px;
+	font-weight: bold;
+	user-select: none;
+}
+
+#font-decrease:hover, #font-increase:hover {
+	color: #fff;
+}
+
 /* --- Input row --- */
 #input-row {
 	display: flex;
@@ -401,5 +420,9 @@ body {
 
 	.timestamp {
 		display: none;
+	}
+
+	.mobile-only {
+		display: block;
 	}
 }

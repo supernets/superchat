@@ -25,6 +25,7 @@
 	let showChanlist = true;
 	let showNicklist = true;
 	let notificationsEnabled = false;
+	let fontSize = 14;
 	let reconnectTimer = null;
 
 	// --- Notification sound (short beep generated via AudioContext) ---
@@ -109,6 +110,8 @@
 	const inputNickEl   = document.getElementById('input-nick');
 	const toggleChanBtn = document.getElementById('toggle-chanlist');
 	const toggleNickBtn = document.getElementById('toggle-nicklist');
+	const fontDecBtn = document.getElementById('font-decrease');
+	const fontIncBtn = document.getElementById('font-increase');
 
 	// --- Nick colors (LRU cache, 1000 max) ---
 	function hashStr(s) {
@@ -268,7 +271,10 @@
 		updateInputNick();
 		updateTopicBar();
 		updateStatusBar();
-		inputEl.focus();
+		// Don't auto-focus input on mobile
+		if (window.innerWidth > 600) {
+			inputEl.focus();
+		}
 	}
 
 	function addMessage(windowName, html, timestamp) {
@@ -671,7 +677,7 @@
 
 			if (fromNick === nick) {
 				createWindow(chan);
-				switchWindow(chan);
+				// Don't auto-switch to prevent force-join spam attacks
 			} else if (windows[chan]) {
 				if (windows[chan].nicks.indexOf(fromNick) === -1) {
 					windows[chan].nicks.push(fromNick);
@@ -866,6 +872,30 @@
 			break;
 		}
 
+		case '321': {
+			// RPL_LISTSTART
+			addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">Channel list:</span>', timestamp);
+			break;
+		}
+
+		case '322': {
+			// RPL_LIST - channel info
+			const chan = p[1];
+			const userCount = p[2] || '0';
+			const topic = p[3] || '';
+			addMessage('Status', chatNick('***', '#888') + 
+				'<span style="color:#0ff;font-weight:bold">' + esc(chan) + '</span> ' +
+				'<span style="color:#666">(' + esc(userCount) + ')</span> ' +
+				(topic ? formatIRC(topic) : ''), timestamp);
+			break;
+		}
+
+		case '323': {
+			// RPL_LISTEND
+			addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">End of channel list</span>', timestamp);
+			break;
+		}
+
 		case 'ERROR':
 			addMessage('Status', chatNick('!!!', '#f00') + '<span style="color:#f00">' + formatIRC(p[0] || '') + '</span>', timestamp);
 			break;
@@ -955,7 +985,15 @@
 	//  Login
 	// ============================================================
 	function doLogin() {
-		let n = loginNickEl.value.trim().replace(/[^a-zA-Z0-9_\-\[\]\\^{}|`]/g, '').substring(0, 16);
+		let n = loginNickEl.value.trim();
+		// Remove invalid chars: only alphanumeric, -, _, [, ]
+		n = n.replace(/[^a-zA-Z0-9_\-\[\]]/g, '');
+		// Can't start with a number
+		if (n && /^[0-9]/.test(n)) {
+			n = 'Guest' + n;
+		}
+		// Limit to 20 chars
+		n = n.substring(0, 20);
 		if (!n) n = 'WebUser' + Math.floor(Math.random() * 99999);
 		nick = n;
 		loginEl.classList.add('hidden');
@@ -968,7 +1006,13 @@
 	const params = new URLSearchParams(window.location.search);
 	const urlNick = params.get('nick');
 	if (urlNick && urlNick.trim()) {
-		nick = urlNick.trim().replace(/[^a-zA-Z0-9_\-\[\]\\^{}|`]/g, '').substring(0, 16);
+		let n = urlNick.trim();
+		n = n.replace(/[^a-zA-Z0-9_\-\[\]]/g, '');
+		if (n && /^[0-9]/.test(n)) {
+			n = 'Guest' + n;
+		}
+		n = n.substring(0, 20);
+		nick = n;
 		if (nick) {
 			loginEl.classList.add('hidden');
 			appEl.classList.remove('hidden');
@@ -999,6 +1043,25 @@
 		showNicklist = !showNicklist;
 		toggleNickBtn.classList.toggle('active', showNicklist);
 		updateNicklistVisibility();
+	});
+
+	// Font size adjustment
+	function updateFontSize() {
+		messagesEl.style.fontSize = fontSize + 'px';
+	}
+
+	fontDecBtn.addEventListener('click', function () {
+		if (fontSize > 10) {
+			fontSize--;
+			updateFontSize();
+		}
+	});
+
+	fontIncBtn.addEventListener('click', function () {
+		if (fontSize < 24) {
+			fontSize++;
+			updateFontSize();
+		}
 	});
 
 	// ============================================================
@@ -1129,6 +1192,10 @@
 
 			case 'raw': case 'quote':
 				if (argStr) send(argStr);
+				break;
+
+			case 'list':
+				send('LIST' + (argStr ? ' ' + argStr : ''));
 				break;
 
 			default:
