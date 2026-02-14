@@ -7,7 +7,7 @@
 	// --- State ---
 	let nick = '';
 	let serverHost = '';
-	let serverPort = 6697;
+	let serverPort = 7000;
 	let useSSL = true;
 	let autoJoinChannels = [];
 	let ws = null;
