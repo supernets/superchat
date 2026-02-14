@@ -1,23 +1,39 @@
-# SuperNETs IRC WebChat
+# SuperCHAT
 
-A minimal client-side JavaScript IRC webchat interface.
+> Bare minimal websockets based IRC client
 
-**Live:** [https://webchat.supernets.org](https://webchat.supernets.org)
+**Live Demo:** [https://webchat.supernets.org](https://webchat.supernets.org)
 
 ![Preview](.screens/preview.png)
 
+A client-side JavaScript IRC client that connects through WebSocket gateways. No backend, no build process, no dependencies - just open it in a browser. It handles standard IRC protocol features, supports multiple channels, tracks highlights across all your conversations, and works on mobile. The interface uses monospace fonts for proper display of ASCII art and code.
+
 ## Features
-- Pure client-side JavaScript (no backend required)
-- WebSocket IRC connection
-- Auto-reconnection on disconnect
-- Desktop notifications
-- Mobile responsive
+- Pure client-side *(runs entirely in browser)*
+- Multi-channel & private message support
+- IRCv3 capabilities *(server-time, batch, message-tags, chat history)*
+- Highlight tracking with audio & desktop notifications
+- Full mIRC color code support for formatted text
+- Mobile responsive with adjustable font sizes
+- Connect to any WebSocket-enabled IRC network
+- Cookie-based settings persistence
 
-## GrapheneOS Note
-You must enable JIT permissions to make websocket connections!
+## WebSocket Requirement
 
-## Usage
-Simply open `index.html` in a web browser or deploy to any static web host.
+**Important:** This client requires IRC networks with WebSocket gateway support. Standard IRC ports *(6667/6697)* will not work. You need a WebSocket-enabled port, typically 7000, 8080, or similar.
+
+### Help Build the Network List
+
+We're creating a dropdown list of WebSocket-enabled IRC networks for easy connection. If your network supports WebSockets, [open an issue on GitHub](https://github.com/supernets/superchat/issues) with the following details:
+- Network name
+- WebSocket server address & port
+- SSL/TLS support status
+- Suggested default channels *(optional)*
+
+Your contribution helps make IRC more accessible to browser-based users!
+
+### GrapheneOS Note
+If using GrapheneOS/Vanadium browser, you must enable JIT permissions for WebSocket connections to work properly.
 
 ---
 
