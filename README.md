@@ -18,4 +18,4 @@ Simply open `index.html` in a web browser or deploy to any static web host.
 
 ---
 
-###### Mirrors: [SuperNETs](https://git.supernets.org/acidvegas/elastop) • [GitHub](https://github.com/acidvegas/elastop) • [GitLab](https://gitlab.com/acidvegas/elastop) • [Codeberg](https://codeberg.org/acidvegas/elastop)
+###### Mirrors: [SuperNETs](https://git.supernets.org/supernets/superchat) • [GitHub](https://github.com/supernets/superchat) • [GitLab](https://gitlab.com/supernets/superchat) • [Codeberg](https://codeberg.org/supernets/superchat)
