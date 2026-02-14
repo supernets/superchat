@@ -24,6 +24,35 @@ A client-side JavaScript IRC client that connects through WebSocket gateways. No
 
 **Important:** This client requires IRC networks with WebSocket gateway support. Standard IRC ports *(6667/6697)* will not work. You need a WebSocket-enabled port, typically 7000, 8080, or similar.
 
+## UnrealIRCd setup for Websockets
+
+#### Create a listen block for websocket connections over TLS
+```
+listen {
+    ip *;
+    port 7000;
+    options {
+        tls;
+        websocket { type text; }
+    };
+    tls-options {
+        certificate "tls/irc.crt";
+        key "tls/irc.key";
+		options { no-client-certificate; }
+    };
+};
+```
+
+**Note:** The `no-client-certificate` is required to allow Chrome based browsers to connect. This is not required for Firefox though.
+
+#### Load required modules
+
+```
+loadmodule "webserver";
+loadmodule "websocket";
+loadmodule "websocket_common";
+```
+
 ### Help Build the Network List
 
 We're creating a dropdown list of WebSocket-enabled IRC networks for easy connection. If your network supports WebSockets, [open an issue on GitHub](https://github.com/supernets/superchat/issues) with the following details:
