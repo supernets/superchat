@@ -13,6 +13,9 @@ A minimal client-side JavaScript IRC webchat interface.
 - Desktop notifications
 - Mobile responsive
 
+## GrapheneOS Note
+You must enable JIT permissions to make websocket connections!
+
 ## Usage
 Simply open `index.html` in a web browser or deploy to any static web host.
 
