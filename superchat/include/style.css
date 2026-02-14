@@ -158,28 +158,6 @@ body {
 	margin-top: -6px;
 }
 
-#login-footer {
-	color: #aaa;
-	font-size: 11px;
-	text-align: center;
-	width: 280px;
-	margin-top: 10px;
-	line-height: 1.4;
-	background: rgba(0, 100, 150, 0.15);
-	border: 1px solid rgba(0, 150, 200, 0.2);
-	border-radius: 4px;
-	padding: 8px 10px;
-}
-
-#login-footer a {
-	color: #00c8ff;
-	text-decoration: none;
-}
-
-#login-footer a:hover {
-	text-decoration: underline;
-}
-
 #login-btn {
 	background: #1a1a1a;
 	color: #888;
