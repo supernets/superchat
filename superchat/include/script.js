@@ -1,14 +1,15 @@
 (function () {
 	'use strict';
 
-	const SERVER_URL = 'wss://irc.supernets.org:7000';
 	const BLACKHOLE = '#blackhole';
-	const AUTO_JOIN = ['#dev', '#comms', '#exchange', '#hardchats', '#scroll', '#superbowl'];
-	const AUTO_JOIN_FOCUS = '#superbowl';
 	const NICK_MAX = 10;
 
 	// --- State ---
 	let nick = '';
+	let serverHost = '';
+	let serverPort = 6697;
+	let useSSL = true;
+	let autoJoinChannels = [];
 	let ws = null;
 	let registered = false;
 	let activeWindow = 'Status';
@@ -98,10 +99,15 @@
 	};
 
 	// --- DOM ---
-	const loginEl       = document.getElementById('login');
-	const loginNickEl   = document.getElementById('login-nick');
-	const loginBtnEl    = document.getElementById('login-btn');
-	const appEl         = document.getElementById('app');
+	const loginEl         = document.getElementById('login');
+	const loginServerEl   = document.getElementById('login-server');
+	const loginPortEl     = document.getElementById('login-port');
+	const loginSSLEl      = document.getElementById('login-ssl');
+	const loginNickEl     = document.getElementById('login-nick');
+	const loginChannelsEl = document.getElementById('login-channels');
+	const loginRememberEl = document.getElementById('login-remember');
+	const loginBtnEl      = document.getElementById('login-btn');
+	const appEl           = document.getElementById('app');
 	const channelsEl    = document.getElementById('channels');
 	const topicbarEl    = document.getElementById('topicbar');
 	const messagesEl    = document.getElementById('messages');
@@ -240,7 +246,20 @@
 		}
 
 		if (spanOpen) out += '</span>';
-		return out;
+		return linkify(out);
+	}
+
+	// --- Linkify URLs in HTML ---
+	function linkify(html) {
+		// Match URLs - must be careful not to match inside existing HTML tags
+		const urlRegex = /(?:^|[^"'>])(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+		return html.replace(urlRegex, function(match, url) {
+			// If match starts with a character (not start of string), preserve it
+			const prefix = match[0] !== 'h' && match[0] !== 'w' ? match[0] : '';
+			const actualUrl = prefix ? match.slice(1) : match;
+			const href = actualUrl.startsWith('www.') ? 'http://' + actualUrl : actualUrl;
+			return prefix + '<a href="' + href + '" target="_blank" rel="noopener noreferrer" style="color:#00a8ff;text-decoration:underline">' + actualUrl + '</a>';
+		});
 	}
 
 	function stripIRC(text) {
@@ -596,17 +615,8 @@
 			addMessage('Status', chatNick('***', '#888') + formatIRC(p[p.length - 1] || ''), timestamp);
 			// Auto-join channels after end of MOTD
 			setTimeout(function () {
-				if (registered) {
-					send('JOIN ' + AUTO_JOIN.join(','));
-					// Focus the designated channel once it's joined
-					const waitForFocus = setInterval(function () {
-						if (windows[AUTO_JOIN_FOCUS]) {
-							switchWindow(AUTO_JOIN_FOCUS);
-							clearInterval(waitForFocus);
-						}
-					}, 200);
-					// Safety: stop waiting after 15 seconds
-					setTimeout(function () { clearInterval(waitForFocus); }, 15000);
+				if (registered && autoJoinChannels.length) {
+					send('JOIN ' + autoJoinChannels.join(','));
 				}
 			}, 3000);
 			break;
@@ -670,7 +680,8 @@
 		case 'JOIN': {
 			const chan = p[0].split(' ')[0];
 
-			if (fromNick === nick && chan.toLowerCase() === BLACKHOLE) {
+			// Auto-part #blackhole only on SuperNETs network
+			if (fromNick === nick && chan.toLowerCase() === BLACKHOLE && serverHost.toLowerCase().includes('supernets')) {
 				send('PART ' + chan);
 				break;
 			}
@@ -941,15 +952,18 @@
 		createWindow('Status');
 		createWindow('Hilights');
 		switchWindow('Status');
-		addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">Connecting to ' + esc(SERVER_URL) + ' ...</span>');
+		
+		const protocol = useSSL ? 'wss://' : 'ws://';
+		const serverURL = protocol + serverHost + ':' + serverPort;
+		addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">Connecting to ' + esc(serverURL) + ' ...</span>');
 
-		ws = new WebSocket(SERVER_URL);
+		ws = new WebSocket(serverURL);
 
 		ws.onopen = function () {
 			addMessage('Status', chatNick('***', '#0f0') + '<span style="color:#0f0">WebSocket connected, negotiating...</span>');
 			send('CAP LS 302');
 			send('NICK ' + nick);
-			send('USER webirc 0 * :https://webchat.supernets.org');
+			send('USER webchat 0 * :SuperChat IRC Gateway');
 		};
 
 		ws.onmessage = function (event) {
@@ -982,23 +996,83 @@
 	}
 
 	// ============================================================
+	//  Cookie helpers
+	// ============================================================
+	function setCookie(name, value, days) {
+		const d = new Date();
+		d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+		document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + d.toUTCString() + ';path=/';
+	}
+
+	function getCookie(name) {
+		const nameEQ = name + '=';
+		const ca = document.cookie.split(';');
+		for (let i = 0; i < ca.length; i++) {
+			let c = ca[i];
+			while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+			if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+		}
+		return null;
+	}
+
+	function deleteCookie(name) {
+		document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+	}
+
+	// ============================================================
 	//  Login
 	// ============================================================
 	function doLogin() {
+		// Get form values
+		serverHost = loginServerEl.value.trim();
+		serverPort = parseInt(loginPortEl.value, 10);
+		useSSL = loginSSLEl.checked;
 		let n = loginNickEl.value.trim();
-		// Remove invalid chars: only alphanumeric, -, _, [, ]
-		n = n.replace(/[^a-zA-Z0-9_\-\[\]]/g, '');
-		// Limit to 20 chars
-		n = n.substring(0, 20);
+		const channelsInput = loginChannelsEl.value.trim();
 		
-		// Validation: Can't start with a number
+		// Validate server
+		if (!serverHost) {
+			alert('Please enter a server address.');
+			return;
+		}
+		
+		// Validate port
+		if (!serverPort || serverPort < 1 || serverPort > 65535) {
+			alert('Please enter a valid port (1-65535).');
+			return;
+		}
+		
+		// Validate and clean nick
+		n = n.replace(/[^a-zA-Z0-9_\-\[\]]/g, '');
+		n = n.substring(0, 20);
 		if (n && /^[0-9]/.test(n)) {
 			alert('Nickname cannot start with a number. Please choose a different nickname.');
 			return;
 		}
-		
 		if (!n) n = 'WebUser' + Math.floor(Math.random() * 99999);
 		nick = n;
+		
+		// Parse channels
+		autoJoinChannels = channelsInput.split(',')
+			.map(function(ch) { return ch.trim(); })
+			.filter(function(ch) { return ch.length > 0; });
+		
+		// Save to cookies if remember is checked
+		if (loginRememberEl.checked) {
+			setCookie('irc_server', serverHost, 365);
+			setCookie('irc_port', serverPort, 365);
+			setCookie('irc_ssl', useSSL ? '1' : '0', 365);
+			setCookie('irc_nick', nick, 365);
+			setCookie('irc_channels', channelsInput, 365);
+		} else {
+			// Clear cookies if unchecked
+			deleteCookie('irc_server');
+			deleteCookie('irc_port');
+			deleteCookie('irc_ssl');
+			deleteCookie('irc_nick');
+			deleteCookie('irc_channels');
+		}
+		
 		loginEl.classList.add('hidden');
 		appEl.classList.remove('hidden');
 		requestNotificationPermission();
@@ -1006,29 +1080,40 @@
 		connect();
 	}
 
-	const params = new URLSearchParams(window.location.search);
-	const urlNick = params.get('nick');
-	if (urlNick && urlNick.trim()) {
-		let n = urlNick.trim();
-		n = n.replace(/[^a-zA-Z0-9_\-\[\]]/g, '');
-		n = n.substring(0, 20);
+	// Load saved settings from cookies
+	function loadSavedSettings() {
+		const savedServer = getCookie('irc_server');
+		const savedPort = getCookie('irc_port');
+		const savedSSL = getCookie('irc_ssl');
+		const savedNick = getCookie('irc_nick');
+		const savedChannels = getCookie('irc_channels');
 		
-		// Skip if starts with number
-		if (n && /^[0-9]/.test(n)) {
-			// Don't auto-login with invalid nick from URL
-		} else {
-			nick = n;
-			if (nick) {
-				loginEl.classList.add('hidden');
-				appEl.classList.remove('hidden');
-				requestNotificationPermission();
-				connect();
-			}
+		if (savedServer) {
+			loginServerEl.value = savedServer;
+			loginRememberEl.checked = true;
+		}
+		if (savedPort) {
+			loginPortEl.value = savedPort;
+		}
+		if (savedSSL !== null) {
+			loginSSLEl.checked = savedSSL === '1';
+		}
+		if (savedNick) {
+			loginNickEl.value = savedNick;
+		}
+		if (savedChannels) {
+			loginChannelsEl.value = savedChannels;
 		}
 	}
 
+	// Load saved settings on page load
+	loadSavedSettings();
+
 	loginBtnEl.addEventListener('click', doLogin);
 	loginNickEl.addEventListener('keydown', function (e) {
+		if (e.key === 'Enter') doLogin();
+	});
+	loginChannelsEl.addEventListener('keydown', function (e) {
 		if (e.key === 'Enter') doLogin();
 	});
 

@@ -49,8 +49,9 @@ body {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 14px;
+	gap: 10px;
 	padding: 20px;
+	max-width: 320px;
 }
 
 #login-logo {
@@ -63,34 +64,89 @@ body {
 
 #login-logo:hover {
 	filter: drop-shadow(0 0 12px rgba(0, 255, 255, 0.7)) drop-shadow(0 0 30px rgba(0, 136, 255, 0.4)) drop-shadow(0 0 50px rgba(0, 255, 255, 0.25));
+	cursor: pointer;
+}
+
+#login-title-link {
+	text-decoration: none;
 }
 
 #login-title {
-	font-size: 26px;
+	font-size: 20px;
 	color: #fff;
-	letter-spacing: 6px;
+	letter-spacing: 3px;
 	text-transform: uppercase;
+	white-space: nowrap;
 	text-shadow:
 		0 0 7px rgba(0, 255, 255, 0.6),
 		0 0 14px rgba(0, 255, 255, 0.4),
 		0 0 28px rgba(0, 255, 255, 0.2),
 		0 0 56px rgba(0, 136, 255, 0.15);
+	transition: text-shadow 0.3s ease;
 }
 
-#login-nick {
+#login-title:hover {
+	text-shadow:
+		0 0 10px rgba(0, 255, 255, 0.8),
+		0 0 20px rgba(0, 255, 255, 0.6),
+		0 0 40px rgba(0, 255, 255, 0.4),
+		0 0 80px rgba(0, 136, 255, 0.3);
+	cursor: pointer;
+}
+
+#login-server, #login-port, #login-nick, #login-channels {
 	background: #111;
 	color: #c0c0c0;
 	border: 1px solid #333;
-	padding: 10px 12px;
+	padding: 8px 10px;
 	font-family: 'Courier New', 'Lucida Console', monospace;
-	font-size: 16px;
+	font-size: 14px;
 	outline: none;
-	width: 260px;
-	text-align: center;
+	width: 280px;
 }
 
-#login-nick:focus {
+#login-server:focus, #login-port:focus, #login-nick:focus, #login-channels:focus {
 	border-color: #666;
+}
+
+#login-row {
+	display: flex;
+	gap: 8px;
+	width: 280px;
+	align-items: center;
+}
+
+#login-port {
+	width: 80px;
+	flex-shrink: 0;
+}
+
+#login-ssl-label {
+	color: #888;
+	font-size: 13px;
+	cursor: pointer;
+	user-select: none;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+#login-ssl {
+	cursor: pointer;
+}
+
+#login-remember-label {
+	color: #888;
+	font-size: 13px;
+	cursor: pointer;
+	user-select: none;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+#login-remember {
+	cursor: pointer;
 }
 
 #login-btn {
@@ -377,12 +433,20 @@ body {
 	}
 
 	#login-title {
-		font-size: 18px;
-		letter-spacing: 4px;
+		font-size: 16px;
+		letter-spacing: 2px;
 	}
 
-	#login-nick {
-		width: 220px;
+	#login-server, #login-port, #login-nick, #login-channels {
+		width: 260px;
+	}
+
+	#login-row {
+		width: 260px;
+	}
+
+	#login-port {
+		width: 70px;
 	}
 
 	#channels {

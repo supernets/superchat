@@ -3,17 +3,24 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-	<title>SuperNETs IRC</title>
+	<title>SuperChat IRC Gateway</title>
 	<link rel="icon" href="./include/favicon.ico" type="image/x-icon">
 	<link rel="stylesheet" href="./include/style.css">
 </head>
 <body>
 	<div id="login">
 		<div id="login-box">
-			<img id="login-logo" src="./include/logo.png" alt="SuperNETs">
-			<div id="login-title">SuperNETs IRC</div>
-			<input type="text" id="login-nick" placeholder="Enter nickname..." autofocus spellcheck="false" autocapitalize="off" autocomplete="off" maxlength="20">
-			<button id="login-btn">Enter The Void</button>
+			<a href="https://git.supernets.org/supernets/superchat" target="_blank" rel="noopener"><img id="login-logo" src="./include/logo.png" alt="SuperChat"></a>
+			<a href="https://git.supernets.org/supernets/superchat" target="_blank" rel="noopener" id="login-title-link"><div id="login-title">SuperChat IRC Gateway</div></a>
+			<input type="text" id="login-server" placeholder="Server" spellcheck="false" autocapitalize="off" autocomplete="off" value="irc.supernets.org">
+			<div id="login-row">
+				<input type="number" id="login-port" placeholder="Port" min="1" max="65535" value="6697">
+				<label id="login-ssl-label"><input type="checkbox" id="login-ssl" checked> SSL/TLS</label>
+			</div>
+			<input type="text" id="login-nick" placeholder="Nickname" autofocus spellcheck="false" autocapitalize="off" autocomplete="off" maxlength="20">
+			<input type="text" id="login-channels" placeholder="Channels (comma-separated)" spellcheck="false" autocapitalize="off" autocomplete="off" value="#dev,#comms,#exchange,#hardchats,#scroll,#superbowl">
+			<label id="login-remember-label"><input type="checkbox" id="login-remember"> Remember my settings</label>
+			<button id="login-btn">Connect</button>
 		</div>
 	</div>
 	<div id="app" class="hidden">
