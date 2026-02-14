@@ -53,6 +53,16 @@ loadmodule "websocket";
 loadmodule "websocket_common";
 ```
 
+### SSL/TLS & HTTPS Requirement
+
+**Important:** Browsers will not allow WSS (secure WebSocket) connections from non-HTTPS pages. If you're hosting this client over HTTP, you'll only be able to connect to WS (insecure) WebSocket servers, which most browsers restrict or block entirely.
+
+To connect to secure WSS servers, either:
+1. Host the client on HTTPS
+2. Use a reverse proxy (nginx, caddy, etc.) to serve the client over HTTPS and proxy WebSocket connections
+
+When using a reverse proxy, ensure it forwards the client's real IP address (use `X-Forwarded-For` or `X-Real-IP` headers) so IRC servers don't see all connections coming from your proxy's IP.
+
 ### Help Build the Network List
 
 We're creating a dropdown list of WebSocket-enabled IRC networks for easy connection. If your network supports WebSockets, [open an issue on GitHub](https://github.com/supernets/superchat/issues) with the following details:
