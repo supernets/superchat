@@ -17,6 +17,8 @@ A client-side JavaScript IRC client that connects through WebSocket gateways. No
 - Mobile responsive with adjustable font sizes
 - Connect to any WebSocket-enabled IRC network
 - Cookie-based settings persistence
+- Auto-reconnect when disconnected
+- Toggle chan/nick list boxes and adjustable font size on mobile
 
 ## WebSocket Requirement
 
