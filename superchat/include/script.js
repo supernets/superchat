@@ -988,12 +988,15 @@
 		let n = loginNickEl.value.trim();
 		// Remove invalid chars: only alphanumeric, -, _, [, ]
 		n = n.replace(/[^a-zA-Z0-9_\-\[\]]/g, '');
-		// Can't start with a number
-		if (n && /^[0-9]/.test(n)) {
-			n = 'Guest' + n;
-		}
 		// Limit to 20 chars
 		n = n.substring(0, 20);
+		
+		// Validation: Can't start with a number
+		if (n && /^[0-9]/.test(n)) {
+			alert('Nickname cannot start with a number. Please choose a different nickname.');
+			return;
+		}
+		
 		if (!n) n = 'WebUser' + Math.floor(Math.random() * 99999);
 		nick = n;
 		loginEl.classList.add('hidden');
@@ -1008,16 +1011,19 @@
 	if (urlNick && urlNick.trim()) {
 		let n = urlNick.trim();
 		n = n.replace(/[^a-zA-Z0-9_\-\[\]]/g, '');
-		if (n && /^[0-9]/.test(n)) {
-			n = 'Guest' + n;
-		}
 		n = n.substring(0, 20);
-		nick = n;
-		if (nick) {
-			loginEl.classList.add('hidden');
-			appEl.classList.remove('hidden');
-			requestNotificationPermission();
-			connect();
+		
+		// Skip if starts with number
+		if (n && /^[0-9]/.test(n)) {
+			// Don't auto-login with invalid nick from URL
+		} else {
+			nick = n;
+			if (nick) {
+				loginEl.classList.add('hidden');
+				appEl.classList.remove('hidden');
+				requestNotificationPermission();
+				connect();
+			}
 		}
 	}
 
