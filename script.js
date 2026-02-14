@@ -25,6 +25,7 @@
 	let showChanlist = true;
 	let showNicklist = true;
 	let notificationsEnabled = false;
+	let reconnectTimer = null;
 
 	// --- Notification sound (short beep generated via AudioContext) ---
 	let audioCtx = null;
@@ -929,9 +930,20 @@
 		};
 
 		ws.onclose = function () {
-			addMessage('Status', chatNick('!!!', '#f00') + '<span style="color:#f00">Disconnected.</span>');
+			addMessage('Status', chatNick('!!!', '#f00') + '<span style="color:#f00">Disconnected. Reconnecting in 15 seconds...</span>');
 			registered = false;
 			updateStatusBar();
+			
+			// Clear any existing reconnect timer
+			if (reconnectTimer) {
+				clearTimeout(reconnectTimer);
+			}
+			
+			// Attempt to reconnect after 15 seconds
+			reconnectTimer = setTimeout(function () {
+				addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">Attempting to reconnect...</span>');
+				connect();
+			}, 15000);
 		};
 
 		ws.onerror = function () {

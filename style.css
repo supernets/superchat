@@ -243,13 +243,14 @@ body {
 }
 
 #statusbar-link {
-	flex: 1;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	color: #555;
 	text-decoration: none;
 	-webkit-tap-highlight-color: transparent;
+	padding: 2px 4px;
+	margin: 0 auto;
 }
 
 #statusbar-link:hover {
@@ -396,5 +397,9 @@ body {
 	#topicbar {
 		font-size: 11px;
 		padding: 2px 6px;
+	}
+
+	.timestamp {
+		display: none;
 	}
 }
