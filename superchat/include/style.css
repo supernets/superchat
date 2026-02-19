@@ -273,7 +273,8 @@ body {
 #messages .line {
 	line-height: 1;
 	margin: 0;
-	padding: 0;
+	padding: 0 0 0 26ch;
+	text-indent: -26ch;
 	white-space: pre-wrap;
 	word-wrap: break-word;
 }
@@ -288,6 +289,7 @@ body {
 	text-align: right;
 	white-space: nowrap;
 	overflow: hidden;
+	vertical-align: bottom;
 }
 
 .sep {
@@ -493,6 +495,11 @@ body {
 
 	.timestamp {
 		display: none;
+	}
+
+	#messages .line {
+		padding-left: 16ch;
+		text-indent: -16ch;
 	}
 
 	.mobile-only {
