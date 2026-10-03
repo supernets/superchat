@@ -1206,6 +1206,9 @@
 	loginWcTotpEl.addEventListener('keydown', function (e) {
 		if (e.key === 'Enter') doLogin();
 	});
+	[loginPortEl, loginWcPortEl].forEach(function (el) {
+		el.addEventListener('input', function () { el.value = el.value.replace(/\D/g, ''); });
+	});
 	document.querySelectorAll('input[name="login-mode"]').forEach(function (r) {
 		r.addEventListener('change', function () { setLoginMode(r.value); });
 	});

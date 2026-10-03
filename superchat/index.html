@@ -19,7 +19,7 @@
 			<div id="login-irc">
 				<input type="text" id="login-server" placeholder="Server" spellcheck="false" autocapitalize="off" autocomplete="off" value="irc.supernets.org">
 				<div id="login-row">
-					<input type="number" id="login-port" placeholder="Port" min="1" max="65535" value="7000">
+					<input type="text" id="login-port" placeholder="Port" inputmode="numeric" maxlength="5" autocomplete="off" value="7000">
 					<label id="login-ssl-label"><input type="checkbox" id="login-ssl" checked> SSL/TLS</label>
 				</div>
 				<div id="login-note">Requires a WebSocket port <small><i>(not 6667/6697)</i></small></div>
@@ -29,10 +29,9 @@
 			<div id="login-weechat" class="hidden">
 				<input type="text" id="login-wc-server" placeholder="Relay host" spellcheck="false" autocapitalize="off" autocomplete="off">
 				<div id="login-wc-row">
-					<input type="number" id="login-wc-port" placeholder="Port" min="1" max="65535">
+					<input type="text" id="login-wc-port" placeholder="Port" inputmode="numeric" maxlength="5" autocomplete="off">
 					<label id="login-wc-tls-label"><input type="checkbox" id="login-wc-tls" checked> SSL/TLS</label>
 				</div>
-				<div id="login-wc-note">Requires a <i>weechat</i> protocol relay, WeeChat 2.9+</div>
 				<input type="password" id="login-wc-password" placeholder="Relay password" autocomplete="current-password">
 				<input type="text" id="login-wc-totp" class="hidden" placeholder="TOTP code" inputmode="numeric" autocomplete="one-time-code" maxlength="10">
 			</div>

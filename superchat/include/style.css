@@ -179,7 +179,47 @@ body {
 	cursor: pointer;
 }
 
-#login-note, #login-wc-note {
+#login-box input[type="checkbox"], #login-box input[type="radio"] {
+	-webkit-appearance: none;
+	appearance: none;
+	display: inline-grid;
+	place-content: center;
+	flex-shrink: 0;
+	width: 14px;
+	height: 14px;
+	margin: 0;
+	background: #111;
+	border: 1px solid #333;
+	border-radius: 0;
+	cursor: pointer;
+}
+
+#login-box input[type="radio"] {
+	border-radius: 50%;
+}
+
+#login-box input[type="checkbox"]:checked, #login-box input[type="radio"]:checked {
+	border-color: #666;
+}
+
+#login-box input[type="checkbox"]:checked::before {
+	content: '';
+	width: 3px;
+	height: 7px;
+	border: solid #c0c0c0;
+	border-width: 0 2px 2px 0;
+	transform: translateY(-1px) rotate(45deg);
+}
+
+#login-box input[type="radio"]:checked::before {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #c0c0c0;
+}
+
+#login-note {
 	color: #666;
 	font-size: 11px;
 	text-align: left;
