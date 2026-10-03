@@ -100,7 +100,8 @@ body {
 	cursor: pointer;
 }
 
-#login-server, #login-port, #login-nick, #login-channels {
+#login-server, #login-port, #login-nick, #login-channels,
+#login-wc-server, #login-wc-port, #login-wc-password, #login-wc-totp {
 	background: #111;
 	color: #c0c0c0;
 	border: 1px solid #333;
@@ -114,23 +115,43 @@ body {
 	border-radius: 0;
 }
 
-#login-server:focus, #login-port:focus, #login-nick:focus, #login-channels:focus {
+#login-server:focus, #login-port:focus, #login-nick:focus, #login-channels:focus,
+#login-wc-server:focus, #login-wc-port:focus, #login-wc-password:focus, #login-wc-totp:focus {
 	border-color: #666;
 }
 
-#login-row {
+#login-irc, #login-weechat {
+	display: contents;
+}
+
+#login-mode {
+	display: flex;
+	gap: 16px;
+	color: #888;
+	font-size: 13px;
+	user-select: none;
+}
+
+#login-mode label {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+}
+
+#login-row, #login-wc-row {
 	display: flex;
 	gap: 8px;
 	width: 280px;
 	align-items: center;
 }
 
-#login-port {
+#login-port, #login-wc-port {
 	width: 80px;
 	flex-shrink: 0;
 }
 
-#login-ssl-label {
+#login-ssl-label, #login-wc-tls-label {
 	color: #888;
 	font-size: 13px;
 	cursor: pointer;
@@ -158,7 +179,7 @@ body {
 	cursor: pointer;
 }
 
-#login-note {
+#login-note, #login-wc-note {
 	color: #666;
 	font-size: 11px;
 	text-align: left;
@@ -181,6 +202,13 @@ body {
 #login-btn:hover {
 	background: #222;
 	color: #ccc;
+}
+
+#login-error {
+	color: #f55;
+	font-size: 12px;
+	width: 280px;
+	text-align: center;
 }
 
 /* --- App layout --- */
@@ -280,12 +308,24 @@ body {
 }
 
 #messages .line {
+	position: relative;
 	line-height: 1;
 	margin: 0;
 	padding: 0 0 0 26ch;
 	text-indent: -26ch;
 	white-space: pre-wrap;
 	overflow-wrap: break-word;
+}
+
+#messages .line::after {
+	content: '';
+	position: absolute;
+	left: 24.5ch;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+	background: #333;
+	pointer-events: none;
 }
 
 .timestamp {
@@ -466,15 +506,16 @@ body {
 		letter-spacing: 2px;
 	}
 
-	#login-server, #login-port, #login-nick, #login-channels {
+	#login-server, #login-port, #login-nick, #login-channels,
+	#login-wc-server, #login-wc-port, #login-wc-password, #login-wc-totp {
 		width: 260px;
 	}
 
-	#login-row {
+	#login-row, #login-wc-row, #login-error {
 		width: 260px;
 	}
 
-	#login-port {
+	#login-port, #login-wc-port {
 		width: 70px;
 	}
 
@@ -518,6 +559,10 @@ body {
 	#messages .line {
 		padding-left: 16ch;
 		text-indent: -16ch;
+	}
+
+	#messages .line::after {
+		left: 14.5ch;
 	}
 
 	.mobile-only {
