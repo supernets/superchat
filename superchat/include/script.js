@@ -28,6 +28,7 @@
 	let notificationsEnabled = false;
 	let fontSize = 14;
 	let reconnectTimer = null;
+	let wcMode = false;
 
 	// --- Notification sound (short beep generated via AudioContext) ---
 	let audioCtx = null;
@@ -107,6 +108,13 @@
 	const loginChannelsEl = document.getElementById('login-channels');
 	const loginRememberEl = document.getElementById('login-remember');
 	const loginBtnEl      = document.getElementById('login-btn');
+	const loginIrcEl      = document.getElementById('login-irc');
+	const loginWcEl       = document.getElementById('login-weechat');
+	const loginWcServerEl = document.getElementById('login-wc-server');
+	const loginWcPortEl   = document.getElementById('login-wc-port');
+	const loginWcTLSEl    = document.getElementById('login-wc-tls');
+	const loginWcPassEl   = document.getElementById('login-wc-password');
+	const loginWcTotpEl   = document.getElementById('login-wc-totp');
 	const appEl           = document.getElementById('app');
 	const channelsEl    = document.getElementById('channels');
 	const topicbarEl    = document.getElementById('topicbar');
@@ -290,19 +298,24 @@
 		updateInputNick();
 		updateTopicBar();
 		updateStatusBar();
+		if (wcMode) WeeChat.onSwitch(name);
 		// Don't auto-focus input on mobile
 		if (window.innerWidth > 600) {
 			inputEl.focus();
 		}
 	}
 
-	function addMessage(windowName, html, timestamp) {
-		if (!windows[windowName]) createWindow(windowName);
+	function stampLine(html, timestamp) {
 		const t = timestamp ? new Date(timestamp) : new Date();
 		const ts = ('0' + t.getHours()).slice(-2) + ':' +
 		           ('0' + t.getMinutes()).slice(-2) + ':' +
 		           ('0' + t.getSeconds()).slice(-2);
-		const line = '<span class="timestamp">[' + ts + ']</span> ' + html;
+		return '<span class="timestamp">[' + ts + ']</span> ' + html;
+	}
+
+	function addMessage(windowName, html, timestamp) {
+		if (!windows[windowName]) createWindow(windowName);
+		const line = stampLine(html, timestamp);
 		const win = windows[windowName];
 		win.messages.push(line);
 		if (win.messages.length > 5000) win.messages.shift();
@@ -338,14 +351,20 @@
 			frag.appendChild(div);
 		});
 		messagesEl.appendChild(frag);
-		messagesEl.scrollTop = messagesEl.scrollHeight;
+		requestAnimationFrame(function () {
+			messagesEl.scrollTop = messagesEl.scrollHeight;
+		});
 	}
 
 	function renderChannelList() {
 		channelsEl.innerHTML = '';
-		for (const name in windows) {
+		const names = Object.keys(windows).sort(function (a, b) {
+			return (windows[a].number || 0) - (windows[b].number || 0);
+		});
+		for (const name of names) {
 			const tab = document.createElement('div');
 			const win = windows[name];
+			if (win.hidden) continue;
 			let cls = 'tab';
 			if (name === activeWindow) {
 				cls += ' active';
@@ -355,7 +374,7 @@
 				cls += ' unread';
 			}
 			tab.className = cls;
-			tab.textContent = name;
+			tab.textContent = win.label || name;
 			tab.onclick = (function (n) { return function () { switchWindow(n); }; })(name);
 			channelsEl.appendChild(tab);
 		}
@@ -399,6 +418,7 @@
 				div.innerHTML = pfxHtml + esc(displayNick);
 				div.title = entry.bare;
 				div.ondblclick = (function (b) { return function () {
+					if (wcMode) return WeeChat.query(b);
 					if (!windows[b]) createWindow(b);
 					switchWindow(b);
 				}; })(entry.bare);
@@ -411,6 +431,7 @@
 
 	// --- Panel visibility ---
 	function isChanWindow(name) {
+		if (windows[name] && windows[name].isChan !== undefined) return windows[name].isChan;
 		return name && (name[0] === '#' || name[0] === '&');
 	}
 
@@ -430,26 +451,16 @@
 		}
 	}
 
-	// --- Get our prefix in a channel ---
-	function getOurPrefix(windowName) {
-		const win = windows[windowName];
-		if (!win || !win.nicks.length) return '';
-		for (let i = 0; i < win.nicks.length; i++) {
-			const bare = win.nicks[i].replace(/^[~&@%+]+/, '');
-			if (bare === nick) {
-				return win.nicks[i].slice(0, win.nicks[i].length - bare.length);
-			}
-		}
-		return '';
-	}
-
 	function updateInputNick() {
-		const pfx = isChanWindow(activeWindow) ? getOurPrefix(activeWindow) : '';
-		inputNickEl.textContent = pfx + nick + ':';
-		inputNickEl.style.color = getNickColor(nick);
+		const win = windows[activeWindow];
+		const me = win && win.nick !== undefined ? win.nick : nick;
+		const pfx = isChanWindow(activeWindow) ? getNickPrefix(activeWindow, me) : '';
+		inputNickEl.textContent = me ? pfx + me + ':' : '';
+		inputNickEl.style.color = getNickColor(me);
 	}
 
 	function updateTopicBar() {
+		if (wcMode) return WeeChat.updateTopicBar(topicbarEl);
 		if (isChanWindow(activeWindow)) {
 			const win = windows[activeWindow];
 			const count = win ? win.nicks.length : 0;
@@ -599,6 +610,16 @@
 			addMessage('Status', chatNick('***', '#0f0') + '<span style="color:#0f0">Connected as ' + esc(nick) + '</span>', timestamp);
 			updateInputNick();
 			updateStatusBar();
+			if (autoJoinChannels.length) {
+				setTimeout(function () {
+					addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">Joining ' + esc(autoJoinChannels.join(', ')) + '...</span>');
+				}, 3000);
+				setTimeout(function () {
+					if (registered && autoJoinChannels.length) {
+						send('JOIN ' + autoJoinChannels.join(','));
+					}
+				}, 5000);
+			}
 			break;
 
 		case '002': case '003': case '004': case '005':
@@ -613,12 +634,6 @@
 
 		case '376':
 			addMessage('Status', chatNick('***', '#888') + formatIRC(p[p.length - 1] || ''), timestamp);
-			// Auto-join channels after end of MOTD
-			setTimeout(function () {
-				if (registered && autoJoinChannels.length) {
-					send('JOIN ' + autoJoinChannels.join(','));
-				}
-			}, 3000);
 			break;
 
 		case '324': {
@@ -851,7 +866,7 @@
 					const hlNick = isAction
 						? '<span style="color:' + nc + '">* ' + esc(pfx + fromNick) + '</span> '
 						: '<span style="color:' + nc + '">&lt;' + esc(pfx + fromNick) + '&gt;</span> ';
-					addMessage('Hilights', '<span style="color:#0ff">' + esc(wn) + '</span> <span class="sep">\u2502</span> ' + hlNick + formatIRC(hlText), timestamp);
+					addMessage('Hilights', chatNick(wn, '#0ff') + hlNick + formatIRC(hlText), timestamp);
 				}
 			}
 
@@ -1022,7 +1037,56 @@
 	// ============================================================
 	//  Login
 	// ============================================================
+	function loginMode() {
+		return document.querySelector('input[name="login-mode"]:checked').value;
+	}
+
+	function setLoginMode(mode) {
+		document.querySelector('input[name="login-mode"][value="' + mode + '"]').checked = true;
+		loginIrcEl.classList.toggle('hidden', mode !== 'irc');
+		loginWcEl.classList.toggle('hidden', mode !== 'weechat');
+	}
+
+	function doWeeChatLogin() {
+		const host = loginWcServerEl.value.trim();
+		const port = parseInt(loginWcPortEl.value, 10);
+		const tls = loginWcTLSEl.checked;
+
+		if (!host) {
+			alert('Please enter a relay host.');
+			return;
+		}
+		if (!port || port < 1 || port > 65535) {
+			alert('Please enter a valid port (1-65535).');
+			return;
+		}
+		if (!loginWcPassEl.value) {
+			alert('Please enter the relay password.');
+			return;
+		}
+
+		// Save to cookies if remember is checked (never the password)
+		if (loginRememberEl.checked) {
+			setCookie('sc_mode', 'weechat', 365);
+			setCookie('wc_server', host, 365);
+			setCookie('wc_port', port, 365);
+			setCookie('wc_tls', tls ? '1' : '0', 365);
+		} else {
+			deleteCookie('sc_mode');
+			deleteCookie('wc_server');
+			deleteCookie('wc_port');
+			deleteCookie('wc_tls');
+		}
+
+		wcMode = true;
+		requestNotificationPermission();
+		WeeChat.connect({ host: host, port: port, tls: tls, password: loginWcPassEl.value, totp: loginWcTotpEl.value.trim() });
+	}
+
 	function doLogin() {
+		if (loginMode() === 'weechat') return doWeeChatLogin();
+		wcMode = false;
+
 		// Get form values
 		serverHost = loginServerEl.value.trim();
 		serverPort = parseInt(loginPortEl.value, 10);
@@ -1059,6 +1123,7 @@
 		
 		// Save to cookies if remember is checked
 		if (loginRememberEl.checked) {
+			setCookie('sc_mode', 'irc', 365);
 			setCookie('irc_server', serverHost, 365);
 			setCookie('irc_port', serverPort, 365);
 			setCookie('irc_ssl', useSSL ? '1' : '0', 365);
@@ -1066,6 +1131,7 @@
 			setCookie('irc_channels', channelsInput, 365);
 		} else {
 			// Clear cookies if unchecked
+			deleteCookie('sc_mode');
 			deleteCookie('irc_server');
 			deleteCookie('irc_port');
 			deleteCookie('irc_ssl');
@@ -1104,6 +1170,24 @@
 		if (savedChannels) {
 			loginChannelsEl.value = savedChannels;
 		}
+
+		const savedWcServer = getCookie('wc_server');
+		const savedWcPort = getCookie('wc_port');
+		const savedWcTLS = getCookie('wc_tls');
+
+		if (savedWcServer) {
+			loginWcServerEl.value = savedWcServer;
+			loginRememberEl.checked = true;
+		}
+		if (savedWcPort) {
+			loginWcPortEl.value = savedWcPort;
+		}
+		if (savedWcTLS !== null) {
+			loginWcTLSEl.checked = savedWcTLS === '1';
+		}
+		if (getCookie('sc_mode') === 'weechat') {
+			setLoginMode('weechat');
+		}
 	}
 
 	// Load saved settings on page load
@@ -1115,6 +1199,15 @@
 	});
 	loginChannelsEl.addEventListener('keydown', function (e) {
 		if (e.key === 'Enter') doLogin();
+	});
+	loginWcPassEl.addEventListener('keydown', function (e) {
+		if (e.key === 'Enter') doLogin();
+	});
+	loginWcTotpEl.addEventListener('keydown', function (e) {
+		if (e.key === 'Enter') doLogin();
+	});
+	document.querySelectorAll('input[name="login-mode"]').forEach(function (r) {
+		r.addEventListener('change', function () { setLoginMode(r.value); });
 	});
 
 	// ============================================================
@@ -1156,42 +1249,43 @@
 	});
 
 	// ============================================================
+	//  Copy handler — flatten wrapped lines so each message = one clipboard line
+	// ============================================================
+	messagesEl.addEventListener('copy', function (e) {
+		const selection = window.getSelection();
+		if (!selection.rangeCount) return;
+
+		var lines = messagesEl.querySelectorAll('.line');
+		var hasFullLine = false;
+		var copiedLines = [];
+		for (var i = 0; i < lines.length; i++) {
+			if (selection.containsNode(lines[i], false)) {
+				hasFullLine = true;
+				copiedLines.push(lines[i].textContent.trim());
+			} else if (selection.containsNode(lines[i], true)) {
+				copiedLines.push(lines[i].textContent.trim());
+			}
+		}
+
+		if (!hasFullLine || copiedLines.length === 0) return;
+
+		e.preventDefault();
+		e.clipboardData.setData('text/plain', copiedLines.join('\n'));
+	});
+
+	// ============================================================
 	//  Input handling
 	// ============================================================
-	inputEl.addEventListener('keydown', function (e) {
-		if (e.key === 'ArrowUp') {
-			if (commandHistory.length) {
-				if (historyIndex < commandHistory.length - 1) historyIndex++;
-				inputEl.value = commandHistory[historyIndex];
-			}
-			e.preventDefault();
-			return;
-		}
-		if (e.key === 'ArrowDown') {
-			if (historyIndex > 0) {
-				historyIndex--;
-				inputEl.value = commandHistory[historyIndex];
-			} else {
-				historyIndex = -1;
-				inputEl.value = '';
-			}
-			e.preventDefault();
-			return;
-		}
-		if (e.key === 'Tab') {
-			e.preventDefault();
-			tabComplete();
-			return;
-		}
-		if (e.key !== 'Enter') return;
-
-		const text = inputEl.value;
-		inputEl.value = '';
-		historyIndex = -1;
+	function processInput(text) {
 		if (!text) return;
 
 		commandHistory.unshift(text);
 		if (commandHistory.length > 100) commandHistory.pop();
+
+		if (wcMode && !/^\/clear(\s|$)/i.test(text)) {
+			WeeChat.input(activeWindow, text);
+			return;
+		}
 
 		if (text[0] === '/') {
 			const spaceIdx = text.indexOf(' ');
@@ -1299,6 +1393,52 @@
 				addMessage(activeWindow, chatNick(nick, getNickColor(nick)) + formatIRC(text));
 			}
 		}
+	}
+
+	inputEl.addEventListener('keydown', function (e) {
+		if (e.key === 'ArrowUp') {
+			if (commandHistory.length) {
+				if (historyIndex < commandHistory.length - 1) historyIndex++;
+				inputEl.value = commandHistory[historyIndex];
+			}
+			e.preventDefault();
+			return;
+		}
+		if (e.key === 'ArrowDown') {
+			if (historyIndex > 0) {
+				historyIndex--;
+				inputEl.value = commandHistory[historyIndex];
+			} else {
+				historyIndex = -1;
+				inputEl.value = '';
+			}
+			e.preventDefault();
+			return;
+		}
+		if (e.key === 'Tab') {
+			e.preventDefault();
+			if (wcMode) WeeChat.complete(inputEl);
+			else tabComplete();
+			return;
+		}
+		if (e.key !== 'Enter') return;
+
+		const text = inputEl.value;
+		inputEl.value = '';
+		historyIndex = -1;
+		processInput(text);
+	});
+
+	inputEl.addEventListener('paste', function (e) {
+		var cbd = e.clipboardData || window.clipboardData;
+		var clip = cbd.getData('text/plain') || cbd.getData('text') || '';
+		var lines = clip.split(/\r?\n/);
+		if (lines.length <= 1) return;
+
+		e.preventDefault();
+		for (var i = 0; i < lines.length; i++) {
+			if (lines[i]) processInput(lines[i]);
+		}
 	});
 
 	// --- Tab completion for nicks ---
@@ -1323,5 +1463,25 @@
 			inputEl.value = words.join(' ') + after;
 		}
 	}
+
+	// --- Internals shared with weechat.js ---
+	window.SuperChat = {
+		NICK_MAX: NICK_MAX,
+		windows: windows,
+		getActive: function () { return activeWindow; },
+		esc: esc,
+		linkify: linkify,
+		stampLine: stampLine,
+		addMessage: addMessage,
+		appendLine: appendLine,
+		switchWindow: switchWindow,
+		renderMessages: renderMessages,
+		renderChannelList: renderChannelList,
+		renderNickList: renderNickList,
+		updateTopicBar: updateTopicBar,
+		updateInputNick: updateInputNick,
+		playNotificationSound: playNotificationSound,
+		sendDesktopNotification: sendDesktopNotification
+	};
 
 })();
