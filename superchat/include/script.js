@@ -158,12 +158,6 @@
 		return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 	}
 
-	// --- Nick truncation ---
-	function truncNick(n) {
-		if (n.length > NICK_MAX) return n.substring(0, NICK_MAX) + '..';
-		return n;
-	}
-
 	// --- Chat nick column + separator ---
 	function chatNick(displayNick, color) {
 		let dn = displayNick;
@@ -310,7 +304,7 @@
 		const ts = ('0' + t.getHours()).slice(-2) + ':' +
 		           ('0' + t.getMinutes()).slice(-2) + ':' +
 		           ('0' + t.getSeconds()).slice(-2);
-		return '<span class="timestamp">[' + ts + ']</span> ' + html;
+		return '<span class="timestamp">' + ts + '</span> ' + html;
 	}
 
 	function addMessage(windowName, html, timestamp) {
@@ -373,6 +367,7 @@
 			} else if (win.unread > 0) {
 				cls += ' unread';
 			}
+			if (name === 'Status' || (win.vars && win.vars.type === 'server')) cls += ' server';
 			tab.className = cls;
 			tab.textContent = win.label || name;
 			tab.onclick = (function (n) { return function () { switchWindow(n); }; })(name);
@@ -414,8 +409,7 @@
 				div.className = 'nick';
 				const pfxColor = entry.pfx ? (PREFIX_COLORS[entry.pfx[0]] || '#666') : '';
 				const pfxHtml = entry.pfx ? '<span style="color:' + pfxColor + '">' + esc(entry.pfx) + '</span>' : '';
-				const displayNick = truncNick(entry.bare);
-				div.innerHTML = pfxHtml + esc(displayNick);
+				div.innerHTML = pfxHtml + esc(entry.bare);
 				div.title = entry.bare;
 				div.ondblclick = (function (b) { return function () {
 					if (wcMode) return WeeChat.query(b);
@@ -1231,6 +1225,43 @@
 		toggleNickBtn.classList.toggle('active', showNicklist);
 		updateNicklistVisibility();
 	});
+
+	// ============================================================
+	//  Resizable side panels (widths remembered in localStorage)
+	// ============================================================
+	function setPanelWidth(panel, w) {
+		w = Math.round(Math.max(80, Math.min(w, window.innerWidth * 0.4)));
+		panel.style.width = panel.style.minWidth = w + 'px';
+	}
+
+	function makeResizable(handle, panel, dir, key) {
+		try {
+			const saved = parseInt(localStorage.getItem(key), 10);
+			if (saved) setPanelWidth(panel, saved);
+		} catch (e) { /* storage unavailable */ }
+
+		handle.addEventListener('pointerdown', function (e) {
+			e.preventDefault();
+			handle.setPointerCapture(e.pointerId);
+			const startX = e.clientX;
+			const startW = panel.offsetWidth;
+			function move(ev) {
+				setPanelWidth(panel, startW + (ev.clientX - startX) * dir);
+			}
+			function up() {
+				handle.removeEventListener('pointermove', move);
+				handle.removeEventListener('pointerup', up);
+				handle.removeEventListener('pointercancel', up);
+				try { localStorage.setItem(key, panel.offsetWidth); } catch (err) { /* storage unavailable */ }
+			}
+			handle.addEventListener('pointermove', move);
+			handle.addEventListener('pointerup', up);
+			handle.addEventListener('pointercancel', up);
+		});
+	}
+
+	makeResizable(document.getElementById('resize-channels'), channelsEl, 1, 'sc_chanlist_width');
+	makeResizable(document.getElementById('resize-nicklist'), nicklistEl, -1, 'sc_nicklist_width');
 
 	// Font size adjustment
 	function updateFontSize() {

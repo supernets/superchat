@@ -294,6 +294,20 @@ body {
 	color: #ccc;
 }
 
+#channels .tab.server {
+	background: #222;
+	color: #bbb;
+}
+
+#channels .tab.server:hover {
+	background: #2a2a2a;
+}
+
+#channels .tab.server.active {
+	background: #333;
+	color: #fff;
+}
+
 #channels .tab.active {
 	background: #1a1a1a;
 	color: #fff;
@@ -305,6 +319,24 @@ body {
 
 #channels .tab.mentioned {
 	color: #ff0;
+}
+
+/* --- Panel resize handles --- */
+.resizer {
+	width: 4px;
+	flex-shrink: 0;
+	cursor: col-resize;
+	touch-action: none;
+	background: transparent;
+}
+
+.resizer:hover, .resizer:active {
+	background: #333;
+}
+
+#channels.hidden + .resizer,
+.resizer:has(+ #nicklist.hidden) {
+	display: none;
 }
 
 /* --- Chat area --- */
@@ -351,8 +383,8 @@ body {
 	position: relative;
 	line-height: 1;
 	margin: 0;
-	padding: 0 0 0 26ch;
-	text-indent: -26ch;
+	padding: 0 0 0 24ch;
+	text-indent: -24ch;
 	white-space: pre-wrap;
 	overflow-wrap: break-word;
 }
@@ -360,7 +392,7 @@ body {
 #messages .line::after {
 	content: '';
 	position: absolute;
-	left: 24.5ch;
+	left: 22.5ch;
 	top: 0;
 	bottom: 0;
 	width: 1px;
@@ -509,7 +541,8 @@ body {
 #nicklist .nick-category {
 	padding: 4px 6px 2px;
 	font-size: 11px;
-	color: #555;
+	color: #aaa;
+	background: #222;
 	border-bottom: 1px solid #1a1a1a;
 	margin-top: 2px;
 }
