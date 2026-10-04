@@ -373,18 +373,20 @@ body {
 }
 
 #messages {
+	--nick-col: 12;
 	flex: 1;
 	overflow-y: auto;
 	padding: 2px 4px;
 	-webkit-overflow-scrolling: touch;
+	touch-action: pan-y;
 }
 
 #messages .line {
 	position: relative;
 	line-height: 1;
 	margin: 0;
-	padding: 0 0 0 24ch;
-	text-indent: -24ch;
+	padding: 0 0 0 calc((var(--nick-col) + 12) * 1ch);
+	text-indent: calc((var(--nick-col) + 12) * -1ch);
 	white-space: pre-wrap;
 	overflow-wrap: break-word;
 }
@@ -392,7 +394,7 @@ body {
 #messages .line::after {
 	content: '';
 	position: absolute;
-	left: 22.5ch;
+	left: calc((var(--nick-col) + 10.5) * 1ch);
 	top: 0;
 	bottom: 0;
 	width: 1px;
@@ -406,10 +408,12 @@ body {
 
 .nick-col {
 	display: inline-block;
-	width: 12ch;
+	width: calc(var(--nick-col) * 1ch);
+	text-indent: 0;
 	text-align: right;
 	white-space: nowrap;
 	overflow: hidden;
+	text-overflow: ellipsis;
 	vertical-align: bottom;
 }
 
@@ -630,12 +634,12 @@ body {
 	}
 
 	#messages .line {
-		padding-left: 16ch;
-		text-indent: -16ch;
+		padding-left: calc((var(--nick-col) + 4) * 1ch);
+		text-indent: calc((var(--nick-col) + 4) * -1ch);
 	}
 
 	#messages .line::after {
-		left: 14.5ch;
+		left: calc((var(--nick-col) + 2.5) * 1ch);
 	}
 
 	.mobile-only {

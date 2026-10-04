@@ -279,20 +279,10 @@
 		return segsText(parseColors(s || ''));
 	}
 
-	// Nick column built from a colored WeeChat prefix, truncated like SuperChat's chatNick()
+	// Nick column built from a colored WeeChat prefix (truncated by CSS like SuperChat's chatNick())
 	function nickCol(prefix, highlight) {
 		let segs = parseColors(prefix || '');
 		const full = segsText(segs);
-		if (full.length > SC.NICK_MAX) {
-			let left = SC.NICK_MAX;
-			const cut = [];
-			for (let k = 0; k < segs.length && left > 0; k++) {
-				cut.push(Object.assign({}, segs[k], { text: segs[k].text.substring(0, left) }));
-				left -= segs[k].text.length;
-			}
-			cut.push({ text: '..' });
-			segs = cut;
-		}
 		if (highlight) {
 			segs = [{ text: segsText(segs), fg: '#ffff00', bg: termColor(124) }];
 		}
