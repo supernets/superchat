@@ -1,3 +1,10 @@
+/* Fairfax HD (OFL, Kreative Software): character-cell font covering box drawing, blocks, braille and legacy computing */
+@font-face {
+	font-family: 'Fairfax HD';
+	src: url('fonts/FairfaxHD.woff2') format('woff2');
+	font-display: swap;
+}
+
 * {
 	margin: 0;
 	padding: 0;
@@ -29,7 +36,7 @@
 body {
 	background: #000;
 	color: #c0c0c0;
-	font-family: 'Courier New', 'Lucida Console', monospace;
+	font-family: 'Fairfax HD', 'Courier New', 'Lucida Console', monospace;
 	font-size: 14px;
 	height: 100vh;
 	height: 100dvh;
@@ -106,7 +113,7 @@ body {
 	color: #c0c0c0;
 	border: 1px solid #333;
 	padding: 8px 10px;
-	font-family: 'Courier New', 'Lucida Console', monospace;
+	font-family: 'Fairfax HD', 'Courier New', 'Lucida Console', monospace;
 	font-size: 14px;
 	outline: none;
 	width: 280px;
@@ -233,7 +240,7 @@ body {
 	color: #888;
 	border: 1px solid #333;
 	padding: 8px 24px;
-	font-family: 'Courier New', 'Lucida Console', monospace;
+	font-family: 'Fairfax HD', 'Courier New', 'Lucida Console', monospace;
 	font-size: 14px;
 	cursor: pointer;
 	-webkit-tap-highlight-color: transparent;
@@ -284,7 +291,7 @@ body {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	font-family: 'Courier New', 'Lucida Console', monospace;
+	font-family: 'Fairfax HD', 'Courier New', 'Lucida Console', monospace;
 	font-size: 13px;
 	-webkit-tap-highlight-color: transparent;
 }
@@ -389,15 +396,16 @@ body {
 	text-indent: calc((var(--nick-col) + 12) * -1ch);
 	white-space: pre-wrap;
 	overflow-wrap: break-word;
+	overflow: clip;
 }
 
 #messages .line::after {
 	content: '';
 	position: absolute;
-	left: calc((var(--nick-col) + 10.5) * 1ch);
+	left: calc((var(--nick-col) + 10.35) * 1ch);
 	top: 0;
 	bottom: 0;
-	width: 1px;
+	width: 0.1333ch;
 	background: #333;
 	pointer-events: none;
 }
@@ -503,7 +511,7 @@ body {
 	padding: 0 4px 0 6px;
 	color: #888;
 	white-space: nowrap;
-	font-family: 'Courier New', 'Lucida Console', monospace;
+	font-family: 'Fairfax HD', 'Courier New', 'Lucida Console', monospace;
 	font-size: 14px;
 	flex-shrink: 0;
 }
@@ -515,7 +523,7 @@ body {
 	color: #c0c0c0;
 	border: none;
 	padding: 6px 6px;
-	font-family: 'Courier New', 'Lucida Console', monospace;
+	font-family: 'Fairfax HD', 'Courier New', 'Lucida Console', monospace;
 	font-size: 14px;
 	outline: none;
 	-webkit-appearance: none;
@@ -635,6 +643,6 @@ body {
 	}
 
 	#messages .line::after {
-		left: calc((var(--nick-col) + 2.5) * 1ch);
+		left: calc((var(--nick-col) + 2.35) * 1ch);
 	}
 }

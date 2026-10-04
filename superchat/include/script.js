@@ -27,7 +27,7 @@
 	let showChanlist = true;
 	let showNicklist = true;
 	let notificationsEnabled = false;
-	let fontSize = 14;
+	let fontSize = 12;
 	let reconnectTimer = null;
 	let wcMode = false;
 
@@ -1320,7 +1320,7 @@
 		messagesEl.addEventListener('pointercancel', up);
 	});
 
-	// Font size adjustment
+	// Font size adjustment: multiples of 4 keep Fairfax HD cells on whole pixels (0.5em wide, 0.75em baseline)
 	function updateFontSize() {
 		messagesEl.style.fontSize = fontSize + 'px';
 		try { localStorage.setItem('sc_font_size', fontSize); } catch (e) { /* storage unavailable */ }
@@ -1328,22 +1328,20 @@
 
 	try {
 		const savedFontSize = parseInt(localStorage.getItem('sc_font_size'), 10);
-		if (savedFontSize >= 10 && savedFontSize <= 24) {
-			fontSize = savedFontSize;
-			messagesEl.style.fontSize = fontSize + 'px';
-		}
+		if (savedFontSize >= 8 && savedFontSize <= 20 && savedFontSize % 4 === 0) fontSize = savedFontSize;
 	} catch (e) { /* storage unavailable */ }
+	messagesEl.style.fontSize = fontSize + 'px';
 
 	fontDecBtn.addEventListener('click', function () {
-		if (fontSize > 10) {
-			fontSize--;
+		if (fontSize > 8) {
+			fontSize -= 4;
 			updateFontSize();
 		}
 	});
 
 	fontIncBtn.addEventListener('click', function () {
-		if (fontSize < 24) {
-			fontSize++;
+		if (fontSize < 20) {
+			fontSize += 4;
 			updateFontSize();
 		}
 	});
