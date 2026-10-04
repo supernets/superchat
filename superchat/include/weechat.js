@@ -795,6 +795,7 @@
 		const pos = completion.before.length + word.length;
 		inputEl.setSelectionRange(pos, pos);
 		completion.value = inputEl.value;
+		SC.updateInputPreview();
 	}
 
 	function updateTopicBar(el) {
