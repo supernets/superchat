@@ -475,10 +475,6 @@ body {
 	display: block;
 }
 
-.mobile-only {
-	display: none;
-}
-
 #font-decrease, #font-increase {
 	color: #555;
 	cursor: pointer;
@@ -640,9 +636,5 @@ body {
 
 	#messages .line::after {
 		left: calc((var(--nick-col) + 2.5) * 1ch);
-	}
-
-	.mobile-only {
-		display: block;
 	}
 }

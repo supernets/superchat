@@ -1323,7 +1323,16 @@
 	// Font size adjustment
 	function updateFontSize() {
 		messagesEl.style.fontSize = fontSize + 'px';
+		try { localStorage.setItem('sc_font_size', fontSize); } catch (e) { /* storage unavailable */ }
 	}
+
+	try {
+		const savedFontSize = parseInt(localStorage.getItem('sc_font_size'), 10);
+		if (savedFontSize >= 10 && savedFontSize <= 24) {
+			fontSize = savedFontSize;
+			messagesEl.style.fontSize = fontSize + 'px';
+		}
+	} catch (e) { /* storage unavailable */ }
 
 	fontDecBtn.addEventListener('click', function () {
 		if (fontSize > 10) {
