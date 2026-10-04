@@ -2,7 +2,8 @@
 	'use strict';
 
 	const BLACKHOLE = '#blackhole';
-	const NICK_MAX = 10;
+	const NICK_COL_MIN = 4;
+	const NICK_COL_MAX = 20;
 
 	// --- State ---
 	let nick = '';
@@ -160,9 +161,7 @@
 
 	// --- Chat nick column + separator ---
 	function chatNick(displayNick, color) {
-		let dn = displayNick;
-		if (dn.length > NICK_MAX) dn = dn.substring(0, NICK_MAX) + '..';
-		return '<span class="nick-col" style="color:' + color + '" title="' + esc(displayNick) + '">' + esc(dn) + '</span> <span class="sep">\u2502</span> ';
+		return '<span class="nick-col" style="color:' + color + '" title="' + esc(displayNick) + '">' + esc(displayNick) + '</span> <span class="sep">\u2502</span> ';
 	}
 
 	// --- IRC formatting → HTML ---
@@ -1263,6 +1262,64 @@
 	makeResizable(document.getElementById('resize-channels'), channelsEl, 1, 'sc_chanlist_width');
 	makeResizable(document.getElementById('resize-nicklist'), nicklistEl, -1, 'sc_nicklist_width');
 
+	// ============================================================
+	//  Nick column width: drag the separator line (remembered in localStorage)
+	// ============================================================
+	function setNickCol(n) {
+		n = Math.max(NICK_COL_MIN, Math.min(NICK_COL_MAX, n));
+		messagesEl.style.setProperty('--nick-col', n);
+		return n;
+	}
+
+	// Separator x position and width of one character, measured from a rendered line
+	function nickColGeometry() {
+		const line = messagesEl.querySelector('.line');
+		const col = line && line.querySelector('.nick-col');
+		if (!col) return null;
+		const n = parseInt(getComputedStyle(messagesEl).getPropertyValue('--nick-col'), 10);
+		return {
+			x: line.getBoundingClientRect().left + parseFloat(getComputedStyle(line, '::after').left),
+			ch: col.getBoundingClientRect().width / n,
+			n: n
+		};
+	}
+
+	function nearSeparator(e) {
+		const g = nickColGeometry();
+		return g && Math.abs(e.clientX - g.x) <= (e.pointerType === 'touch' ? 10 : 4) ? g : null;
+	}
+
+	try {
+		const savedNickCol = parseInt(localStorage.getItem('sc_nick_col'), 10);
+		if (savedNickCol) setNickCol(savedNickCol);
+	} catch (e) { /* storage unavailable */ }
+
+	messagesEl.addEventListener('pointermove', function (e) {
+		if (e.buttons) return;
+		messagesEl.style.cursor = nearSeparator(e) ? 'col-resize' : '';
+	});
+
+	messagesEl.addEventListener('pointerdown', function (e) {
+		const g = nearSeparator(e);
+		if (!g) return;
+		e.preventDefault();
+		messagesEl.setPointerCapture(e.pointerId);
+		const startX = e.clientX;
+		let n = g.n;
+		function move(ev) {
+			n = setNickCol(g.n + Math.round((ev.clientX - startX) / g.ch));
+		}
+		function up() {
+			messagesEl.removeEventListener('pointermove', move);
+			messagesEl.removeEventListener('pointerup', up);
+			messagesEl.removeEventListener('pointercancel', up);
+			try { localStorage.setItem('sc_nick_col', n); } catch (err) { /* storage unavailable */ }
+		}
+		messagesEl.addEventListener('pointermove', move);
+		messagesEl.addEventListener('pointerup', up);
+		messagesEl.addEventListener('pointercancel', up);
+	});
+
 	// Font size adjustment
 	function updateFontSize() {
 		messagesEl.style.fontSize = fontSize + 'px';
@@ -1500,7 +1557,6 @@
 
 	// --- Internals shared with weechat.js ---
 	window.SuperChat = {
-		NICK_MAX: NICK_MAX,
 		windows: windows,
 		getActive: function () { return activeWindow; },
 		esc: esc,
