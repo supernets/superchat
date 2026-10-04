@@ -379,6 +379,16 @@ body {
 	color: #666;
 }
 
+/* Fairfax HD has no bold face and Firefox's synthetic bold widens glyphs (breaking the character grid),
+   so IRC bold is drawn as a thin stroke instead, which keeps every cell the same width */
+#messages, #topicbar, #input-preview {
+	font-synthesis-weight: none;
+}
+
+#messages [style*="font-weight:bold"], #topicbar [style*="font-weight:bold"], #input-preview [style*="font-weight:bold"], #topicbar .topic-channel {
+	-webkit-text-stroke: 0.04em currentColor;
+}
+
 #messages {
 	--nick-col: 12;
 	flex: 1;
@@ -516,11 +526,42 @@ body {
 	flex-shrink: 0;
 }
 
-#input {
+/* The input text is transparent; #input-preview renders the same characters underneath with formatting */
+#input-wrap {
+	position: relative;
 	flex: 1;
 	min-width: 0;
 	background: #111;
+}
+
+#input-preview {
+	position: absolute;
+	inset: 0;
+	padding: 6px 6px;
 	color: #c0c0c0;
+	font-family: 'Fairfax HD', 'Courier New', 'Lucida Console', monospace;
+	font-size: 14px;
+	line-height: 1.2;
+	white-space: pre;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+#input-preview .code {
+	color: #666;
+	font-weight: normal;
+	font-style: normal;
+	text-decoration: none;
+	background: none;
+}
+
+#input {
+	position: relative;
+	width: 100%;
+	background: transparent;
+	color: transparent;
+	caret-color: #c0c0c0;
+	line-height: 1.2;
 	border: none;
 	padding: 6px 6px;
 	font-family: 'Fairfax HD', 'Courier New', 'Lucida Console', monospace;
@@ -531,8 +572,87 @@ body {
 	border-radius: 0;
 }
 
+#input::placeholder {
+	color: #666;
+}
+
 #input:focus::placeholder {
 	color: transparent;
+}
+
+/* --- Format popover --- */
+#format-btn {
+	color: #c0c0c0;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	flex-shrink: 0;
+	padding: 0 4px;
+	margin-left: 10px;
+	font-size: 12px;
+	font-weight: bold;
+	user-select: none;
+	border-bottom: 2px solid;
+	border-image: linear-gradient(90deg, #f00, #fc7f00, #ff0, #0f0, #0ff, #00f, #f0f) 1;
+}
+
+#format-btn:hover, #format-btn.active {
+	color: #fff;
+}
+
+#format-pop {
+	position: fixed;
+	z-index: 10;
+	width: min(320px, calc(100vw - 16px));
+	max-height: 60vh;
+	overflow-y: auto;
+	padding: 8px;
+	background: #0a0a0a;
+	border: 1px solid #333;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+#format-pop button {
+	background: #1a1a1a;
+	color: #c0c0c0;
+	border: 1px solid #333;
+	padding: 6px 10px;
+	font-family: 'Fairfax HD', 'Courier New', 'Lucida Console', monospace;
+	font-size: 13px;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+}
+
+#format-pop button:hover, #format-tabs button.active {
+	background: #2a2a2a;
+	color: #fff;
+	border-color: #666;
+}
+
+#format-actions, #format-tabs {
+	display: flex;
+	gap: 6px;
+}
+
+#format-actions button, #format-tabs button {
+	flex: 1;
+}
+
+#format-colors {
+	display: grid;
+	grid-template-columns: repeat(8, 1fr);
+	gap: 4px;
+}
+
+#format-pop #format-colors button {
+	aspect-ratio: 1;
+	padding: 0;
+	border: 1px solid #333;
+}
+
+#format-pop #format-colors button:hover {
+	border-color: #fff;
 }
 
 /* --- Nick list --- */
@@ -610,7 +730,7 @@ body {
 		min-width: 120px;
 	}
 
-	#input {
+	#input, #input-preview {
 		font-size: 16px;
 	}
 

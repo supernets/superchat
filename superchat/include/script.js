@@ -125,6 +125,11 @@
 	const inputNickEl   = document.getElementById('input-nick');
 	const toggleChanBtn = document.getElementById('toggle-chanlist');
 	const toggleNickBtn = document.getElementById('toggle-nicklist');
+	const inputPreviewEl = document.getElementById('input-preview');
+	const formatBtn     = document.getElementById('format-btn');
+	const formatPopEl   = document.getElementById('format-pop');
+	const formatColorsEl = document.getElementById('format-colors');
+	const formatMoreBtn = document.getElementById('format-more');
 	const fontDecBtn = document.getElementById('font-decrease');
 	const fontIncBtn = document.getElementById('font-increase');
 
@@ -1377,8 +1382,9 @@
 	function processInput(text) {
 		if (!text) return;
 
-		commandHistory.unshift(text);
+		commandHistory.unshift(toMarkers(text));
 		if (commandHistory.length > 100) commandHistory.pop();
+		text = toCodes(text);
 
 		if (wcMode && !/^\/clear(\s|$)/i.test(text)) {
 			WeeChat.input(activeWindow, text);
@@ -1498,6 +1504,7 @@
 			if (commandHistory.length) {
 				if (historyIndex < commandHistory.length - 1) historyIndex++;
 				inputEl.value = commandHistory[historyIndex];
+				updateInputPreview();
 			}
 			e.preventDefault();
 			return;
@@ -1510,6 +1517,7 @@
 				historyIndex = -1;
 				inputEl.value = '';
 			}
+			updateInputPreview();
 			e.preventDefault();
 			return;
 		}
@@ -1523,6 +1531,7 @@
 
 		const text = inputEl.value;
 		inputEl.value = '';
+		updateInputPreview();
 		historyIndex = -1;
 		processInput(text);
 	});
@@ -1538,6 +1547,185 @@
 			if (lines[i]) processInput(lines[i]);
 		}
 	});
+
+	// ============================================================
+	//  Input formatting: control codes are shown in the input as 1-cell control
+	//  pictures (U+2400 + code) and rendered live in #input-preview underneath
+	// ============================================================
+	function toMarkers(t) {
+		return t.replace(/[\x02\x03\x0F\x16\x1D\x1F]/g, function (c) { return String.fromCharCode(0x2400 + c.charCodeAt(0)); });
+	}
+
+	function toCodes(t) {
+		return t.replace(/[\u2402\u2403\u240F\u2416\u241D\u241F]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x2400); });
+	}
+
+	function previewHtml(v) {
+		let out = '';
+		let run = '';
+		let bold = false, italic = false, underline = false, fg = null, bg = null;
+
+		function flush() {
+			if (!run) return;
+			const s = [];
+			if (bold)      s.push('font-weight:bold');
+			if (italic)    s.push('font-style:italic');
+			if (underline) s.push('text-decoration:underline');
+			if (fg !== null && IRC_COLORS[fg]) s.push('color:' + IRC_COLORS[fg]);
+			if (bg !== null && IRC_COLORS[bg]) s.push('background-color:' + IRC_COLORS[bg]);
+			out += s.length ? '<span style="' + s.join(';') + '">' + esc(run) + '</span>' : esc(run);
+			run = '';
+		}
+
+		let i = 0;
+		while (i < v.length) {
+			const c = v[i];
+			let code = '';
+			if (c === '\u2403') {
+				const m = /^\u2403(?:(\d{1,2})(?:,(\d{1,2}))?)?/.exec(v.substring(i));
+				code = m[0];
+				flush();
+				if (m[1] !== undefined) {
+					fg = parseInt(m[1], 10);
+					if (m[2] !== undefined) bg = parseInt(m[2], 10);
+				} else {
+					fg = bg = null;
+				}
+			} else if (c === '\u2402' || c === '\u241D' || c === '\u241F' || c === '\u2416' || c === '\u240F') {
+				code = c;
+				flush();
+				if (c === '\u2402') bold = !bold;
+				else if (c === '\u241D') italic = !italic;
+				else if (c === '\u241F') underline = !underline;
+				else if (c === '\u2416') { const t = fg; fg = bg; bg = t; }
+				else { bold = italic = underline = false; fg = bg = null; }
+			}
+			if (code) {
+				out += '<span class="code">' + esc(code) + '</span>';
+				i += code.length;
+			} else {
+				run += c;
+				i++;
+			}
+		}
+		flush();
+		return out;
+	}
+
+	function updateInputPreview() {
+		inputPreviewEl.innerHTML = previewHtml(inputEl.value) + ' ';
+		inputPreviewEl.scrollLeft = inputEl.scrollLeft;
+	}
+
+	inputEl.addEventListener('input', function () {
+		// Pasted/typed raw control codes become visible markers (same length, so the caret stays put)
+		if (/[\x02\x03\x0F\x16\x1D\x1F]/.test(inputEl.value)) {
+			const pos = inputEl.selectionStart;
+			inputEl.value = toMarkers(inputEl.value);
+			inputEl.setSelectionRange(pos, pos);
+		}
+		updateInputPreview();
+	});
+	['keyup', 'click', 'select', 'scroll', 'focus'].forEach(function (ev) {
+		inputEl.addEventListener(ev, function () { inputPreviewEl.scrollLeft = inputEl.scrollLeft; });
+	});
+	inputEl.addEventListener('keydown', function () {
+		requestAnimationFrame(function () { inputPreviewEl.scrollLeft = inputEl.scrollLeft; });
+	});
+
+	// --- Format popover ---
+	let formatTab = 'fg';
+	let formatMore = false;
+	let formatPos = 0;
+
+	function buildSwatches() {
+		formatColorsEl.innerHTML = '';
+		const count = formatMore ? IRC_COLORS.length : 16;
+		for (let c = 0; c < count; c++) {
+			const b = document.createElement('button');
+			b.type = 'button';
+			b.title = String(c);
+			b.style.background = IRC_COLORS[c];
+			b.addEventListener('click', function () { pickColor(c); });
+			formatColorsEl.appendChild(b);
+		}
+		formatMoreBtn.textContent = formatMore ? 'Fewer colors' : 'More colors';
+	}
+
+	function openFormat() {
+		formatPos = inputEl.selectionEnd !== null ? inputEl.selectionEnd : inputEl.value.length;
+		formatPopEl.classList.remove('hidden');
+		formatBtn.classList.add('active');
+		const r = formatBtn.getBoundingClientRect();
+		const w = formatPopEl.offsetWidth;
+		formatPopEl.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+		formatPopEl.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+	}
+
+	function closeFormat() {
+		formatPopEl.classList.add('hidden');
+		formatBtn.classList.remove('active');
+	}
+
+	function insertFormat(str) {
+		const v = inputEl.value;
+		const pos = Math.min(formatPos, v.length);
+		inputEl.value = v.substring(0, pos) + str + v.substring(pos);
+		closeFormat();
+		inputEl.focus();
+		inputEl.setSelectionRange(pos + str.length, pos + str.length);
+		updateInputPreview();
+	}
+
+	function pad2(n) {
+		return ('0' + n).slice(-2);
+	}
+
+	function pickColor(c) {
+		if (formatTab === 'fg') return insertFormat('\u2403' + pad2(c));
+		// mIRC needs a text color before a background: extend a color code right before the cursor, else use 99 (default)
+		const before = inputEl.value.substring(0, formatPos);
+		insertFormat(/\u2403\d{1,2}$/.test(before) ? ',' + pad2(c) : '\u240399,' + pad2(c));
+	}
+
+	formatBtn.addEventListener('click', function () {
+		if (formatPopEl.classList.contains('hidden')) openFormat();
+		else closeFormat();
+	});
+
+	// Keep focus (and the mobile keyboard) on the input while using the popover
+	[formatBtn, formatPopEl].forEach(function (el) {
+		el.addEventListener('mousedown', function (e) { e.preventDefault(); });
+	});
+
+	formatPopEl.querySelectorAll('[data-insert]').forEach(function (b) {
+		b.addEventListener('click', function () {
+			insertFormat({ bold: '\u2402', underline: '\u241F', reset: '\u240F' }[b.dataset.insert]);
+		});
+	});
+
+	formatPopEl.querySelectorAll('[data-tab]').forEach(function (b) {
+		b.addEventListener('click', function () {
+			formatTab = b.dataset.tab;
+			formatPopEl.querySelectorAll('[data-tab]').forEach(function (t) { t.classList.toggle('active', t === b); });
+		});
+	});
+
+	formatMoreBtn.addEventListener('click', function () {
+		formatMore = !formatMore;
+		buildSwatches();
+		if (!formatPopEl.classList.contains('hidden')) openFormat();
+	});
+
+	document.addEventListener('pointerdown', function (e) {
+		if (!formatPopEl.classList.contains('hidden') && !formatPopEl.contains(e.target) && !formatBtn.contains(e.target)) closeFormat();
+	});
+
+	document.addEventListener('keydown', function (e) {
+		if (e.key === 'Escape') closeFormat();
+	});
+
+	buildSwatches();
 
 	// --- Tab completion for nicks ---
 	function tabComplete() {
@@ -1559,6 +1747,7 @@
 			const bare = match.replace(/^[~&@%+]+/, '');
 			words[words.length - 1] = bare + (words.length === 1 ? ': ' : ' ');
 			inputEl.value = words.join(' ') + after;
+			updateInputPreview();
 		}
 	}
 
@@ -1577,6 +1766,7 @@
 		renderNickList: renderNickList,
 		updateTopicBar: updateTopicBar,
 		updateInputNick: updateInputNick,
+		updateInputPreview: updateInputPreview,
 		playNotificationSound: playNotificationSound,
 		sendDesktopNotification: sendDesktopNotification
 	};
