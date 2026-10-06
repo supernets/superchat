@@ -1076,8 +1076,8 @@
 
 	function setLoginMode(mode) {
 		document.querySelector('input[name="login-mode"][value="' + mode + '"]').checked = true;
-		loginIrcEl.classList.toggle('hidden', mode !== 'irc');
-		loginWcEl.classList.toggle('hidden', mode !== 'weechat');
+		loginIrcEl.classList.toggle('inactive', mode !== 'irc');
+		loginWcEl.classList.toggle('inactive', mode !== 'weechat');
 	}
 
 	function doWeeChatLogin() {
@@ -1234,31 +1234,13 @@
 	const loginBoxEl  = document.getElementById('login-box');
 	const loginLogoEl = document.getElementById('login-logo');
 
-	// Natural size of the (taller) IRC form, measured on a hidden copy so both modes get the same size
-	function ircFormSize() {
-		const copy = loginBoxEl.cloneNode(true);
-		copy.querySelectorAll('[name]').forEach(function (el) { el.removeAttribute('name'); });
-		copy.querySelector('#login-irc').classList.remove('hidden');
-		copy.querySelector('#login-weechat').classList.add('hidden');
-		copy.style.cssText = 'position:absolute;visibility:hidden;zoom:1;left:0;top:0';
-		document.body.appendChild(copy);
-		const size = { w: copy.offsetWidth, h: copy.offsetHeight };
-		copy.remove();
-		return size;
-	}
-
 	function scaleLogin() {
 		if (loginEl.classList.contains('hidden')) return;
 		loginBoxEl.style.zoom = 1;
-		const irc = ircFormSize();
-		// Reserve the IRC form's height in both modes so switching modes doesn't move anything
-		loginBoxEl.style.minHeight = irc.h + 'px';
 		let scale = 1;
 		if (window.innerWidth > 600 && loginBoxEl.offsetHeight) {
-			const h = Math.max(irc.h, loginBoxEl.offsetHeight);
-			const w = Math.max(irc.w, loginBoxEl.offsetWidth);
 			const logoMax = loginLogoEl.naturalWidth && loginLogoEl.offsetWidth ? loginLogoEl.naturalWidth / loginLogoEl.offsetWidth : 1;
-			scale = Math.max(1, Math.min(window.innerHeight * 0.9 / h, window.innerWidth * 0.9 / w, logoMax));
+			scale = Math.max(1, Math.min(window.innerHeight * 0.9 / loginBoxEl.offsetHeight, window.innerWidth * 0.9 / loginBoxEl.offsetWidth, logoMax));
 		}
 		loginBoxEl.style.zoom = scale;
 	}
