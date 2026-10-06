@@ -24,8 +24,9 @@
 	let enabledCaps = [];
 	let commandHistory = [];
 	let historyIndex = -1;
-	let showChanlist = true;
-	let showNicklist = true;
+	// Buffer list and nicklist start collapsed on mobile
+	let showChanlist = window.innerWidth > 600;
+	let showNicklist = window.innerWidth > 600;
 	let notificationsEnabled = false;
 	let fontSize = 12;
 	let reconnectTimer = null;
@@ -1215,8 +1216,9 @@
 	//  Toggle buttons
 	// ============================================================
 	// Set initial toggle state
-	toggleChanBtn.classList.add('active');
-	toggleNickBtn.classList.add('active');
+	toggleChanBtn.classList.toggle('active', showChanlist);
+	toggleNickBtn.classList.toggle('active', showNicklist);
+	updateChanlistVisibility();
 
 	toggleChanBtn.addEventListener('click', function () {
 		showChanlist = !showChanlist;
@@ -1328,6 +1330,7 @@
 	// Font size adjustment: multiples of 4 keep Fairfax HD cells on whole pixels (0.5em wide, 0.75em baseline)
 	function updateFontSize() {
 		messagesEl.style.fontSize = fontSize + 'px';
+		messagesEl.scrollTop = messagesEl.scrollHeight;
 		try { localStorage.setItem('sc_font_size', fontSize); } catch (e) { /* storage unavailable */ }
 	}
 
