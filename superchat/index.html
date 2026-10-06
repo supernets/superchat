@@ -16,6 +16,7 @@
 				<label><input type="radio" name="login-mode" value="irc" checked> IRC</label>
 				<label><input type="radio" name="login-mode" value="weechat"> WeeChat relay</label>
 			</div>
+			<div id="login-fields">
 			<div id="login-irc">
 				<input type="text" id="login-server" placeholder="Server" spellcheck="false" autocapitalize="off" autocomplete="off" value="irc.supernets.org">
 				<div id="login-row">
@@ -26,7 +27,7 @@
 				<input type="text" id="login-nick" placeholder="Nickname" autofocus spellcheck="false" autocapitalize="off" autocomplete="off" maxlength="20">
 				<input type="text" id="login-channels" placeholder="Channels (e.g. #dev,#comms)" spellcheck="false" autocapitalize="off" autocomplete="off" value="#superbowl">
 			</div>
-			<div id="login-weechat" class="hidden">
+			<div id="login-weechat" class="inactive">
 				<input type="text" id="login-wc-server" placeholder="Relay host" spellcheck="false" autocapitalize="off" autocomplete="off">
 				<div id="login-wc-row">
 					<input type="text" id="login-wc-port" placeholder="Port" inputmode="numeric" maxlength="5" autocomplete="off">
@@ -35,6 +36,7 @@
 				</div>
 				<input type="password" id="login-wc-password" placeholder="Relay password" autocomplete="current-password">
 				<input type="text" id="login-wc-totp" class="hidden" placeholder="TOTP code" inputmode="numeric" autocomplete="one-time-code" maxlength="10">
+			</div>
 			</div>
 			<label id="login-remember-label"><input type="checkbox" id="login-remember"> Remember my settings</label>
 			<button id="login-btn">Connect</button>

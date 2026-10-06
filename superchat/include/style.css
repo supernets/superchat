@@ -127,8 +127,21 @@ body {
 	border-color: #666;
 }
 
+/* Both field groups share one grid cell, so the form is always sized for the larger one and never moves when switching modes */
+#login-fields {
+	display: grid;
+}
+
 #login-irc, #login-weechat {
-	display: contents;
+	grid-area: 1 / 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+}
+
+#login-fields > .inactive {
+	visibility: hidden;
 }
 
 #login-mode {
