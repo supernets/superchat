@@ -1200,7 +1200,6 @@
 
 	// WeeChat relay setup guide
 	const wcGuideEl = document.getElementById('wc-guide');
-	document.getElementById('wc-guide-origin').textContent = '^' + location.origin.replace(/[.]/g, '\\.') + '$';
 	document.getElementById('login-wc-help').addEventListener('click', function () { wcGuideEl.classList.remove('hidden'); });
 	document.getElementById('wc-guide-close').addEventListener('click', function () { wcGuideEl.classList.add('hidden'); });
 	wcGuideEl.addEventListener('click', function (e) { if (e.target === wcGuideEl) wcGuideEl.classList.add('hidden'); });
