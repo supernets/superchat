@@ -439,6 +439,203 @@ body {
 	color: #333;
 }
 
+/* --- Channel list view --- */
+#listview {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	font-size: 14px;
+}
+
+#listview-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 6px;
+	background: #0a0a0a;
+	border-bottom: 1px solid #333;
+}
+
+#listview-search {
+	flex: 1 1 220px;
+	min-width: 0;
+	background: #111;
+	color: #c0c0c0;
+	border: 1px solid #333;
+	padding: 6px 8px;
+	font: inherit;
+	outline: none;
+	-webkit-appearance: none;
+	appearance: none;
+	border-radius: 0;
+}
+
+#listview-search:focus {
+	border-color: #666;
+}
+
+#listview-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+#listview button {
+	background: #1a1a1a;
+	color: #c0c0c0;
+	border: 1px solid #333;
+	padding: 6px 10px;
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+}
+
+#listview button:hover, #listview button.active {
+	background: #2a2a2a;
+	color: #fff;
+	border-color: #666;
+}
+
+#listview-status {
+	padding: 4px 8px;
+	color: #777;
+	font-size: 12px;
+}
+
+#listview-rows {
+	--name-w: 12;
+	flex: 1;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.listrow {
+	display: grid;
+	grid-template-columns: calc(var(--name-w) * 1ch) 6ch minmax(0, 1fr);
+	column-gap: 2ch;
+	align-items: baseline;
+	padding: 5px 8px;
+	border-bottom: 1px solid #151515;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.listrow:hover {
+	background: #151515;
+}
+
+.lr-name, .lr-topic {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.lr-name {
+	color: #fff;
+}
+
+.lr-users {
+	color: #888;
+	text-align: right;
+}
+
+.lr-topic {
+	color: #c0c0c0;
+}
+
+/* --- WeeChat relay guide --- */
+#login-wc-help {
+	margin-left: auto;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: #111;
+	color: #c0c0c0;
+	border: 1px solid #333;
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+#login-wc-help:hover {
+	border-color: #666;
+	color: #fff;
+}
+
+#wc-guide {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 12px;
+	background: rgba(0, 0, 0, 0.8);
+}
+
+#wc-guide-box {
+	width: 100%;
+	max-width: 640px;
+	max-height: 90vh;
+	overflow-y: auto;
+	padding: 16px;
+	background: #0a0a0a;
+	border: 1px solid #333;
+	color: #c0c0c0;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+#wc-guide-title {
+	color: #fff;
+	font-size: 15px;
+	margin-bottom: 10px;
+}
+
+#wc-guide-box p {
+	margin: 8px 0 4px;
+}
+
+#wc-guide-box pre {
+	margin: 4px 0;
+	padding: 8px;
+	background: #111;
+	border: 1px solid #222;
+	overflow-x: auto;
+	font: inherit;
+	font-size: 12px;
+	line-height: 1.3;
+	tab-size: 4;
+}
+
+#wc-guide-box code {
+	color: #fff;
+	font: inherit;
+}
+
+#wc-guide-box .wc-guide-note {
+	color: #777;
+	font-size: 12px;
+}
+
+#wc-guide-close {
+	margin-top: 10px;
+	background: #1a1a1a;
+	color: #c0c0c0;
+	border: 1px solid #333;
+	padding: 6px 16px;
+	font: inherit;
+	cursor: pointer;
+}
+
+#wc-guide-close:hover {
+	background: #222;
+	color: #fff;
+}
+
 /* --- Status bar --- */
 #statusbar {
 	display: flex;
@@ -692,6 +889,20 @@ body {
 
 /* --- Mobile --- */
 @media (max-width: 600px) {
+	#listview {
+		font-size: 13px;
+	}
+
+	.listrow {
+		grid-template-columns: minmax(0, 1fr) auto;
+		row-gap: 2px;
+		padding: 8px;
+	}
+
+	.lr-topic {
+		grid-column: 1 / -1;
+	}
+
 	body {
 		font-size: 13px;
 	}

@@ -126,6 +126,10 @@
 	const inputNickEl   = document.getElementById('input-nick');
 	const toggleChanBtn = document.getElementById('toggle-chanlist');
 	const toggleNickBtn = document.getElementById('toggle-nicklist');
+	const listviewEl     = document.getElementById('listview');
+	const listSearchEl   = document.getElementById('listview-search');
+	const listStatusEl   = document.getElementById('listview-status');
+	const listRowsEl     = document.getElementById('listview-rows');
 	const inputPreviewEl = document.getElementById('input-preview');
 	const formatBtn     = document.getElementById('format-btn');
 	const formatPopEl   = document.getElementById('format-pop');
@@ -297,6 +301,7 @@
 		updateInputNick();
 		updateTopicBar();
 		updateStatusBar();
+		updateListView();
 		if (wcMode) WeeChat.onSwitch(name);
 		// Don't auto-focus input on mobile
 		if (window.innerWidth > 600) {
@@ -459,6 +464,10 @@
 	}
 
 	function updateTopicBar() {
+		if (windows[activeWindow] && windows[activeWindow].listView) {
+			topicbarEl.classList.add('hidden');
+			return;
+		}
 		if (wcMode) return WeeChat.updateTopicBar(topicbarEl);
 		if (isChanWindow(activeWindow)) {
 			const win = windows[activeWindow];
@@ -702,7 +711,11 @@
 
 			if (fromNick === nick) {
 				createWindow(chan);
-				// Don't auto-switch to prevent force-join spam attacks
+				// Don't auto-switch to prevent force-join spam attacks (except channels joined from the channel list)
+				if (pendingListJoin === chan.toLowerCase()) {
+					pendingListJoin = null;
+					switchWindow(chan);
+				}
 			} else if (windows[chan]) {
 				if (windows[chan].nicks.indexOf(fromNick) === -1) {
 					windows[chan].nicks.push(fromNick);
@@ -897,29 +910,25 @@
 			break;
 		}
 
-		case '321': {
+		case '321':
 			// RPL_LISTSTART
-			addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">Channel list:</span>', timestamp);
+			if (!windows[LIST_WINDOW] || !windows[LIST_WINDOW].listView) openListWindow(LIST_WINDOW, null, false);
+			setListChannels(LIST_WINDOW, [], false);
 			break;
-		}
 
 		case '322': {
 			// RPL_LIST - channel info
-			const chan = p[1];
-			const userCount = p[2] || '0';
+			if (!windows[LIST_WINDOW] || !windows[LIST_WINDOW].listView) openListWindow(LIST_WINDOW, null, false);
 			const topic = p[3] || '';
-			addMessage('Status', chatNick('***', '#888') + 
-				'<span style="color:#0ff;font-weight:bold">' + esc(chan) + '</span> ' +
-				'<span style="color:#666">(' + esc(userCount) + ')</span> ' +
-				(topic ? formatIRC(topic) : ''), timestamp);
+			windows[LIST_WINDOW].listView.channels.push({ name: p[1], users: parseInt(p[2], 10) || 0, topicHtml: formatIRC(topic), plain: stripIRC(topic) });
+			scheduleListRender();
 			break;
 		}
 
-		case '323': {
+		case '323':
 			// RPL_LISTEND
-			addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">End of channel list</span>', timestamp);
+			if (windows[LIST_WINDOW] && windows[LIST_WINDOW].listView) setListChannels(LIST_WINDOW, windows[LIST_WINDOW].listView.channels, true);
 			break;
-		}
 
 		case 'ERROR':
 			addMessage('Status', chatNick('!!!', '#f00') + '<span style="color:#f00">' + formatIRC(p[0] || '') + '</span>', timestamp);
@@ -1189,6 +1198,14 @@
 		}
 	}
 
+	// WeeChat relay setup guide
+	const wcGuideEl = document.getElementById('wc-guide');
+	document.getElementById('wc-guide-origin').textContent = '^' + location.origin.replace(/[.]/g, '\\.') + '$';
+	document.getElementById('login-wc-help').addEventListener('click', function () { wcGuideEl.classList.remove('hidden'); });
+	document.getElementById('wc-guide-close').addEventListener('click', function () { wcGuideEl.classList.add('hidden'); });
+	wcGuideEl.addEventListener('click', function (e) { if (e.target === wcGuideEl) wcGuideEl.classList.add('hidden'); });
+	document.addEventListener('keydown', function (e) { if (e.key === 'Escape') wcGuideEl.classList.add('hidden'); });
+
 	// Load saved settings on page load
 	loadSavedSettings();
 
@@ -1391,6 +1408,16 @@
 		if (commandHistory.length > 100) commandHistory.pop();
 		text = toCodes(text);
 
+		if (windows[activeWindow] && windows[activeWindow].listView && /^\/close(\s|$)/i.test(text)) {
+			closeListWindow();
+			return;
+		}
+
+		if (wcMode && /^\/list(\s|$)/i.test(text)) {
+			WeeChat.list(text.substring(5).trim());
+			return;
+		}
+
 		if (wcMode && !/^\/clear(\s|$)/i.test(text)) {
 			WeeChat.input(activeWindow, text);
 			return;
@@ -1489,6 +1516,7 @@
 				break;
 
 			case 'list':
+				openListWindow(LIST_WINDOW, null, true);
 				send('LIST' + (argStr ? ' ' + argStr : ''));
 				break;
 
@@ -1497,7 +1525,7 @@
 				break;
 			}
 		} else {
-			if (activeWindow !== 'Status') {
+			if (activeWindow !== 'Status' && !windows[activeWindow].listView) {
 				send('PRIVMSG ' + activeWindow + ' :' + text);
 				addMessage(activeWindow, chatNick(nick, getNickColor(nick)) + formatIRC(text));
 			}
@@ -1552,6 +1580,132 @@
 			if (lines[i]) processInput(lines[i]);
 		}
 	});
+
+	// ============================================================
+	//  Channel list view (/list): searchable, sortable, tap a row to join
+	// ============================================================
+	const LIST_WINDOW = 'Channel list';
+	let listSort = { key: 'users', dir: -1 };
+	let listRenderTimer = null;
+	let pendingListJoin = null;
+
+	// channels: [{ name, users, topicHtml, plain }]
+	function openListWindow(key, server, show) {
+		const from = activeWindow;
+		if (!windows[key]) windows[key] = { messages: [], nicks: [], unread: 0, mentioned: false, label: 'Channel list' };
+		windows[key].vars = { type: 'list', server: server };
+		windows[key].listView = { channels: [], loading: true, error: '', server: server, returnTo: from };
+		if (show) {
+			listSearchEl.value = '';
+			switchWindow(key);
+		} else {
+			renderChannelList();
+		}
+	}
+
+	function setListChannels(key, channels, done, error) {
+		const win = windows[key];
+		if (!win || !win.listView) return;
+		win.listView.channels = channels;
+		win.listView.loading = !done;
+		win.listView.error = error || '';
+		if (activeWindow === key) renderListView();
+	}
+
+	function scheduleListRender() {
+		if (listRenderTimer) return;
+		listRenderTimer = setTimeout(function () {
+			listRenderTimer = null;
+			if (windows[activeWindow] && windows[activeWindow].listView) renderListView();
+		}, 300);
+	}
+
+	function closeListWindow() {
+		const win = windows[activeWindow];
+		if (!win || !win.listView) return;
+		const lv = win.listView;
+		if (wcMode) WeeChat.closeList(lv.server);
+		delete windows[activeWindow];
+		switchWindow(windows[lv.returnTo] ? lv.returnTo : Object.keys(windows)[0]);
+	}
+
+	function updateListView() {
+		const isList = !!(windows[activeWindow] && windows[activeWindow].listView);
+		listviewEl.classList.toggle('hidden', !isList);
+		messagesEl.classList.toggle('hidden', isList);
+		if (isList) renderListView();
+	}
+
+	function renderListView() {
+		const lv = windows[activeWindow].listView;
+		const q = listSearchEl.value.trim().toLowerCase();
+		const rows = lv.channels.filter(function (c) {
+			return !q || c.name.toLowerCase().indexOf(q) !== -1 || c.plain.toLowerCase().indexOf(q) !== -1;
+		});
+		rows.sort(function (a, b) {
+			const byName = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+			return listSort.key === 'name' ? byName * listSort.dir : ((a.users - b.users) * listSort.dir || byName);
+		});
+
+		listviewEl.querySelectorAll('[data-sort]').forEach(function (b) {
+			const active = b.dataset.sort === listSort.key;
+			b.classList.toggle('active', active);
+			b.textContent = (b.dataset.sort === 'name' ? 'Name' : 'Users') + (active ? (listSort.dir > 0 ? ' \u25B2' : ' \u25BC') : '');
+		});
+
+		if (lv.error) listStatusEl.textContent = lv.error;
+		else if (lv.loading) listStatusEl.textContent = 'Loading channel list... ' + (lv.channels.length ? lv.channels.length + ' so far' : '');
+		else listStatusEl.textContent = (q ? rows.length + ' of ' : '') + lv.channels.length + ' channels \u2014 tap a channel to join';
+
+		let nameW = 6;
+		rows.forEach(function (c) { nameW = Math.max(nameW, c.name.length); });
+		listRowsEl.style.setProperty('--name-w', Math.min(nameW, 30));
+
+		const frag = document.createDocumentFragment();
+		rows.forEach(function (c) {
+			const row = document.createElement('div');
+			row.className = 'listrow';
+			row.innerHTML = '<span class="lr-name" title="' + esc(c.name) + '">' + esc(c.name) + '</span>' +
+				'<span class="lr-users">' + c.users + '</span>' +
+				'<span class="lr-topic" title="' + esc(c.plain) + '">' + c.topicHtml + '</span>';
+			row.addEventListener('click', function (e) {
+				if (e.target.closest('a')) return;
+				joinFromList(c.name);
+			});
+			frag.appendChild(row);
+		});
+		listRowsEl.innerHTML = '';
+		listRowsEl.appendChild(frag);
+	}
+
+	function joinFromList(name) {
+		const lv = windows[activeWindow].listView;
+		if (wcMode) return WeeChat.join(lv.server, name);
+		if (windows[name]) return switchWindow(name);
+		pendingListJoin = name.toLowerCase();
+		send('JOIN ' + name);
+	}
+
+	listSearchEl.addEventListener('input', function () {
+		if (windows[activeWindow] && windows[activeWindow].listView) renderListView();
+	});
+
+	listviewEl.querySelectorAll('[data-sort]').forEach(function (b) {
+		b.addEventListener('click', function () {
+			if (listSort.key === b.dataset.sort) listSort.dir = -listSort.dir;
+			else listSort = { key: b.dataset.sort, dir: b.dataset.sort === 'name' ? 1 : -1 };
+			renderListView();
+		});
+	});
+
+	document.getElementById('listview-refresh').addEventListener('click', function () {
+		const lv = windows[activeWindow].listView;
+		if (wcMode) return WeeChat.list('', lv.server);
+		openListWindow(LIST_WINDOW, null, true);
+		send('LIST');
+	});
+
+	document.getElementById('listview-close').addEventListener('click', closeListWindow);
 
 	// ============================================================
 	//  Input formatting: control codes are shown in the input as 1-cell control
@@ -1772,6 +1926,8 @@
 		updateTopicBar: updateTopicBar,
 		updateInputNick: updateInputNick,
 		updateInputPreview: updateInputPreview,
+		openListWindow: openListWindow,
+		setListChannels: setListChannels,
 		playNotificationSound: playNotificationSound,
 		sendDesktopNotification: sendDesktopNotification
 	};
