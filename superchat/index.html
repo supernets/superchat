@@ -44,31 +44,46 @@
 	<div id="wc-guide" class="hidden">
 		<div id="wc-guide-box">
 			<div id="wc-guide-title">WeeChat relay setup</div>
-			<p>You need WeeChat 2.9+ (4.1+ for the channel list), a domain pointing at the machine running WeeChat, and port 80 free while the certificate is issued.</p>
-			<p><b>1.</b> Get a Let's Encrypt certificate:</p>
+			<p>You need WeeChat 4.0+ (4.1+ for the channel list) and a domain pointing at the machine running it.</p>
+			<p><b>1.</b> Get a certificate. Port 80 must be reachable while it is issued (if a web server already uses it, swap <code>--standalone</code> for <code>--webroot -w /var/www/html</code>):</p>
 			<pre>sudo certbot certonly --standalone -d relay.example.com --register-unsafely-without-email</pre>
-			<p><b>2.</b> Create <code>/etc/letsencrypt/renewal-hooks/deploy/weechat-relay</code> so WeeChat gets a copy now and on every renewal (set your user and domain):</p>
-			<pre>#!/bin/sh
-U=youruser
-L=/etc/letsencrypt/live/relay.example.com
-D=/home/$U/.config/weechat/tls
-mkdir -p $D
-cat $L/privkey.pem $L/fullchain.pem &gt; $D/relay.pem
-chown -R $U: $D &amp;&amp; chmod 600 $D/relay.pem
-for f in /run/user/$(id -u $U)/weechat/weechat_fifo_* /home/$U/.cache/weechat/weechat_fifo_*; do
-	if [ -p "$f" ]; then echo '*/relay tlscertkey' &gt; "$f"; fi
-done</pre>
-			<pre>sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/weechat-relay
-sudo /etc/letsencrypt/renewal-hooks/deploy/weechat-relay</pre>
-			<p><b>3.</b> In WeeChat:</p>
+			<p><b>2.</b> In WeeChat, set the relay password and a fixed FIFO path so the certificate can be reloaded automatically:</p>
 			<pre>/secure set relay YOUR_PASSWORD
 /set relay.network.password "${sec.data.relay}"
-/set relay.network.websocket_allowed_origins "<span id="wc-guide-origin"></span>"
-/relay tlscertkey
-/relay add tls.weechat 9001
+/set fifo.file.enabled on
+/set fifo.file.path "${weechat_data_dir}/weechat_fifo"
 /save</pre>
-			<p><b>4.</b> Open port 9001/tcp in your firewall, then connect here with host <code>relay.example.com</code>, port <code>9001</code>, SSL/TLS on, and your password.</p>
-			<p class="wc-guide-note">Older than WeeChat 4.0: use <code>ssl.weechat</code> instead of <code>tls.weechat</code>. Config in <code>~/.weechat</code>: change the <code>D=</code> path. Something already on port 80: use <code>--webroot -w /var/www/html</code> instead of <code>--standalone</code>.</p>
+			<p><b>3.</b> Save this as <code>/etc/letsencrypt/renewal-hooks/deploy/weechat-relay</code> and set <code>WEECHAT_USER</code> and <code>DOMAIN</code>. Certbot runs it after every renewal:</p>
+			<pre>#!/bin/sh
+# Install the renewed Let's Encrypt certificate for the WeeChat relay and reload it
+set -eu
+
+WEECHAT_USER="youruser"
+DOMAIN="relay.example.com"
+
+user_home=$(getent passwd "$WEECHAT_USER" | cut -d: -f6)
+live_dir="/etc/letsencrypt/live/$DOMAIN"
+tls_dir="$user_home/.config/weechat/tls"
+fifo="$user_home/.local/share/weechat/weechat_fifo"
+
+umask 077
+
+# WeeChat wants the private key and the full certificate chain in one PEM file
+mkdir -p "$tls_dir"
+cat "$live_dir/privkey.pem" "$live_dir/fullchain.pem" &gt; "$tls_dir/relay.pem"
+chown -R "$WEECHAT_USER:" "$tls_dir"
+
+# Reload the certificate if WeeChat is running (the FIFO only exists while it is)
+if [ -p "$fifo" ]; then
+	echo '*/relay tlscertkey' | timeout 5 tee "$fifo" &gt; /dev/null
+fi</pre>
+			<p>Make it executable and run it once now:</p>
+			<pre>sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/weechat-relay
+sudo /etc/letsencrypt/renewal-hooks/deploy/weechat-relay</pre>
+			<p><b>4.</b> In WeeChat, add the relay:</p>
+			<pre>/relay add tls.weechat 9001
+/save</pre>
+			<p><b>5.</b> Open port 9001/tcp in your firewall, then connect here with host <code>relay.example.com</code>, port <code>9001</code>, SSL/TLS on, and your password.</p>
 			<button type="button" id="wc-guide-close">Close</button>
 		</div>
 	</div>
