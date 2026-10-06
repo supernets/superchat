@@ -1224,12 +1224,14 @@
 		showChanlist = !showChanlist;
 		toggleChanBtn.classList.toggle('active', showChanlist);
 		updateChanlistVisibility();
+		messagesEl.scrollTop = messagesEl.scrollHeight;
 	});
 
 	toggleNickBtn.addEventListener('click', function () {
 		showNicklist = !showNicklist;
 		toggleNickBtn.classList.toggle('active', showNicklist);
 		updateNicklistVisibility();
+		messagesEl.scrollTop = messagesEl.scrollHeight;
 	});
 
 	// ============================================================
