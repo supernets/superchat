@@ -547,9 +547,16 @@
 		(msg.objects[0] || []).forEach(function (h) {
 			const win = SC.windows[h.buffer];
 			if (!win || h.buffer === SC.getActive()) return;
+			// count = [low, message, private, highlight]
 			const c = h.count || [0, 0, 0, 0];
-			win.unread = (c[1] || 0) + (c[2] || 0) + (c[3] || 0);
-			win.mentioned = (c[2] || 0) + (c[3] || 0) > 0;
+			const type = win.vars && win.vars.type;
+			const messages = (c[1] || 0) + (c[2] || 0) + (c[3] || 0);
+			win.unread = 0;
+			win.mentioned = win.activity = false;
+			if (type === 'channel' && c[3]) win.mentioned = true;
+			else if (type === 'channel' && messages) win.unread = messages;
+			else if (type === 'private' && messages) win.mentioned = true;
+			else if (messages || c[0]) win.activity = true;
 		});
 		SC.renderChannelList();
 	}
@@ -595,14 +602,16 @@
 			win.pending.push({ key: lineKey(ld), line: line });
 		}
 
-		if (!active) {
-			if (ld.notify_level >= 1) win.unread++;
-			if (ld.highlight || ld.notify_level >= 2) win.mentioned = true;
-			SC.renderChannelList();
-		}
-		if (ld.highlight) {
+		// notify_level: -1 none, 0 low (joins/parts...), 1 message, 2 private, 3 highlight
+		const type = win.vars && win.vars.type;
+		const own = (ld.tags_array || []).indexOf('self_msg') !== -1;
+		const isMessage = ld.notify_level >= 1 && !own;
+		if (ld.notify_level >= 0) SC.markActivity(ptr, isMessage, !!ld.highlight);
+
+		const isPrivate = type === 'private' && isMessage;
+		if ((type === 'channel' && ld.highlight) || isPrivate) {
 			SC.playNotificationSound();
-			SC.sendDesktopNotification(stripColors(ld.prefix) + ' in ' + win.label, stripColors(ld.message));
+			SC.sendDesktopNotification(isPrivate ? 'Message from ' + win.label : stripColors(ld.prefix) + ' in ' + win.label, stripColors(ld.message));
 		}
 	}
 

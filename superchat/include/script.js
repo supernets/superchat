@@ -294,6 +294,7 @@
 		activeWindow = name;
 		windows[name].unread = 0;
 		windows[name].mentioned = false;
+		windows[name].activity = false;
 		renderChannelList();
 		renderMessages();
 		updateNicklistVisibility();
@@ -317,19 +318,36 @@
 		return '<span class="timestamp">' + ts + '</span> ' + html;
 	}
 
-	function addMessage(windowName, html, timestamp) {
+	// Buffer kind for activity colors: 'channel', 'private' or 'other' (server/status/special buffers)
+	function windowKind(name) {
+		const win = windows[name];
+		if (win && win.vars) return win.vars.type === 'channel' || win.vars.type === 'private' ? win.vars.type : 'other';
+		if (isChanWindow(name)) return 'channel';
+		return (name === 'Status' || name === 'Hilights' || (win && win.listView)) ? 'other' : 'private';
+	}
+
+	// Inactive tab colors: yellow = channel highlight or new private message, cyan = channel message,
+	// brighter white = any other activity; server/special buffers only ever get brighter white
+	function markActivity(name, isMessage, isHighlight) {
+		const win = windows[name];
+		if (!win || name === activeWindow) return;
+		const kind = windowKind(name);
+		if (kind === 'channel' && isHighlight) win.mentioned = true;
+		else if (kind === 'channel' && isMessage) win.unread++;
+		else if (kind === 'private' && isMessage) win.mentioned = true;
+		else win.activity = true;
+		renderChannelList();
+	}
+
+	function addMessage(windowName, html, timestamp, isMessage) {
 		if (!windows[windowName]) createWindow(windowName);
 		const line = stampLine(html, timestamp);
 		const win = windows[windowName];
 		win.messages.push(line);
 		if (win.messages.length > 5000) win.messages.shift();
 
-		if (windowName === activeWindow) {
-			appendLine(line);
-		} else {
-			win.unread++;
-			renderChannelList();
-		}
+		if (windowName === activeWindow) appendLine(line);
+		else markActivity(windowName, isMessage, false);
 	}
 
 	// --- Rendering ---
@@ -376,6 +394,8 @@
 				cls += ' mentioned';
 			} else if (win.unread > 0) {
 				cls += ' unread';
+			} else if (win.activity) {
+				cls += ' activity';
 			}
 			if (name === 'Status' || (win.vars && win.vars.type === 'server')) cls += ' server';
 			tab.className = cls;
@@ -868,7 +888,7 @@
 			if (isChan) {
 				const plain = stripIRC(text).toLowerCase();
 				if (plain.indexOf(nick.toLowerCase()) !== -1) {
-					if (wn !== activeWindow) windows[wn].mentioned = true;
+					markActivity(wn, true, true);
 					playNotificationSound();
 					sendDesktopNotification(fromNick + ' in ' + wn, stripIRC(text));
 					// Log to Hilights window
@@ -882,12 +902,17 @@
 				}
 			}
 
+			if (!isChan) {
+				playNotificationSound();
+				sendDesktopNotification('Message from ' + fromNick, stripIRC(isAction ? text.slice(8, -1) : text));
+			}
+
 			const nc = getNickColor(fromNick);
 			if (isAction) {
 				const at = text.slice(8, -1);
-				addMessage(wn, chatNick('*', nc) + '<span style="color:' + nc + '">' + esc(fromNick) + ' ' + formatIRC(at) + '</span>', timestamp);
+				addMessage(wn, chatNick('*', nc) + '<span style="color:' + nc + '">' + esc(fromNick) + ' ' + formatIRC(at) + '</span>', timestamp, true);
 			} else {
-				addMessage(wn, chatNick(fromNick, nc) + formatIRC(text), timestamp);
+				addMessage(wn, chatNick(fromNick, nc) + formatIRC(text), timestamp, true);
 			}
 			break;
 		}
@@ -902,10 +927,10 @@
 				addMessage('Status', chatNick(fromNick || '***', '#ff0') + '<span style="color:#ff0">' + formatIRC(text) + '</span>', timestamp);
 			} else if (isChan) {
 				if (!windows[target]) createWindow(target);
-				addMessage(target, chatNick(fromNick, '#ff0') + '<span style="color:#ff0">' + formatIRC(text) + '</span>', timestamp);
+				addMessage(target, chatNick(fromNick, '#ff0') + '<span style="color:#ff0">' + formatIRC(text) + '</span>', timestamp, true);
 			} else {
 				const wn = windows[fromNick] ? fromNick : 'Status';
-				addMessage(wn, chatNick(fromNick, '#ff0') + '<span style="color:#ff0">' + formatIRC(text) + '</span>', timestamp);
+				addMessage(wn, chatNick(fromNick, '#ff0') + '<span style="color:#ff0">' + formatIRC(text) + '</span>', timestamp, true);
 			}
 			break;
 		}
@@ -1921,6 +1946,7 @@
 		switchWindow: switchWindow,
 		renderMessages: renderMessages,
 		renderChannelList: renderChannelList,
+		markActivity: markActivity,
 		renderNickList: renderNickList,
 		updateTopicBar: updateTopicBar,
 		updateInputNick: updateInputNick,
