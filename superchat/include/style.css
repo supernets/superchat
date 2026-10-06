@@ -320,6 +320,10 @@ body {
 	color: #fff;
 }
 
+#channels .tab.activity {
+	color: #fff;
+}
+
 #channels .tab.unread {
 	color: #0ff;
 }
