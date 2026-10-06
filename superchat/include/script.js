@@ -1230,6 +1230,27 @@
 	wcGuideEl.addEventListener('click', function (e) { if (e.target === wcGuideEl) wcGuideEl.classList.add('hidden'); });
 	document.addEventListener('keydown', function (e) { if (e.key === 'Escape') wcGuideEl.classList.add('hidden'); });
 
+	// Login form grows with the window on desktop (to ~90% of the height or width), never past the logo's native size
+	const loginBoxEl  = document.getElementById('login-box');
+	const loginLogoEl = document.getElementById('login-logo');
+
+	function scaleLogin() {
+		if (loginEl.classList.contains('hidden')) return;
+		loginBoxEl.style.zoom = 1;
+		let scale = 1;
+		if (window.innerWidth > 600 && loginBoxEl.offsetHeight) {
+			const logoMax = loginLogoEl.naturalWidth && loginLogoEl.offsetWidth ? loginLogoEl.naturalWidth / loginLogoEl.offsetWidth : 1;
+			scale = Math.max(1, Math.min(window.innerHeight * 0.9 / loginBoxEl.offsetHeight, window.innerWidth * 0.9 / loginBoxEl.offsetWidth, logoMax));
+		}
+		loginBoxEl.style.zoom = scale;
+	}
+
+	window.addEventListener('resize', scaleLogin);
+	loginLogoEl.addEventListener('load', scaleLogin);
+	scaleLogin();
+	// Re-fit when the form's content changes (mode switch, TOTP field, error text) or the login screen reappears
+	new MutationObserver(scaleLogin).observe(loginEl, { attributes: true, attributeFilter: ['class'], childList: true, characterData: true, subtree: true });
+
 	// Load saved settings on page load
 	loadSavedSettings();
 
