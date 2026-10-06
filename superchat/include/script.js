@@ -1250,9 +1250,11 @@
 	function scaleLogin() {
 		if (loginEl.classList.contains('hidden')) return;
 		loginBoxEl.style.zoom = 1;
+		const irc = ircFormSize();
+		// Reserve the IRC form's height in both modes so switching modes doesn't move anything
+		loginBoxEl.style.minHeight = irc.h + 'px';
 		let scale = 1;
 		if (window.innerWidth > 600 && loginBoxEl.offsetHeight) {
-			const irc = ircFormSize();
 			const h = Math.max(irc.h, loginBoxEl.offsetHeight);
 			const w = Math.max(irc.w, loginBoxEl.offsetWidth);
 			const logoMax = loginLogoEl.naturalWidth && loginLogoEl.offsetWidth ? loginLogoEl.naturalWidth / loginLogoEl.offsetWidth : 1;
