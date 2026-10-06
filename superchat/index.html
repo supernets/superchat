@@ -31,6 +31,7 @@
 				<div id="login-wc-row">
 					<input type="text" id="login-wc-port" placeholder="Port" inputmode="numeric" maxlength="5" autocomplete="off">
 					<label id="login-wc-tls-label"><input type="checkbox" id="login-wc-tls" checked> SSL/TLS</label>
+					<button type="button" id="login-wc-help" title="How to set up a WeeChat relay">?</button>
 				</div>
 				<input type="password" id="login-wc-password" placeholder="Relay password" autocomplete="current-password">
 				<input type="text" id="login-wc-totp" class="hidden" placeholder="TOTP code" inputmode="numeric" autocomplete="one-time-code" maxlength="10">
@@ -40,6 +41,37 @@
 			<div id="login-error" class="hidden"></div>
 		</div>
 	</div>
+	<div id="wc-guide" class="hidden">
+		<div id="wc-guide-box">
+			<div id="wc-guide-title">WeeChat relay setup</div>
+			<p>You need WeeChat 2.9+ (4.1+ for the channel list), a domain pointing at the machine running WeeChat, and port 80 free while the certificate is issued.</p>
+			<p><b>1.</b> Get a Let's Encrypt certificate:</p>
+			<pre>sudo certbot certonly --standalone -d relay.example.com --register-unsafely-without-email</pre>
+			<p><b>2.</b> Create <code>/etc/letsencrypt/renewal-hooks/deploy/weechat-relay</code> so WeeChat gets a copy now and on every renewal (set your user and domain):</p>
+			<pre>#!/bin/sh
+U=youruser
+L=/etc/letsencrypt/live/relay.example.com
+D=/home/$U/.config/weechat/tls
+mkdir -p $D
+cat $L/privkey.pem $L/fullchain.pem &gt; $D/relay.pem
+chown -R $U: $D &amp;&amp; chmod 600 $D/relay.pem
+for f in /run/user/$(id -u $U)/weechat/weechat_fifo_* /home/$U/.cache/weechat/weechat_fifo_*; do
+	if [ -p "$f" ]; then echo '*/relay tlscertkey' &gt; "$f"; fi
+done</pre>
+			<pre>sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/weechat-relay
+sudo /etc/letsencrypt/renewal-hooks/deploy/weechat-relay</pre>
+			<p><b>3.</b> In WeeChat:</p>
+			<pre>/secure set relay YOUR_PASSWORD
+/set relay.network.password "${sec.data.relay}"
+/set relay.network.websocket_allowed_origins "<span id="wc-guide-origin"></span>"
+/relay tlscertkey
+/relay add tls.weechat 9001
+/save</pre>
+			<p><b>4.</b> Open port 9001/tcp in your firewall, then connect here with host <code>relay.example.com</code>, port <code>9001</code>, SSL/TLS on, and your password.</p>
+			<p class="wc-guide-note">Older than WeeChat 4.0: use <code>ssl.weechat</code> instead of <code>tls.weechat</code>. Config in <code>~/.weechat</code>: change the <code>D=</code> path. Something already on port 80: use <code>--webroot -w /var/www/html</code> instead of <code>--standalone</code>.</p>
+			<button type="button" id="wc-guide-close">Close</button>
+		</div>
+	</div>
 	<div id="app" class="hidden">
 		<div id="main">
 			<div id="channels"></div>
@@ -47,6 +79,19 @@
 			<div id="chat-area">
 				<div id="topicbar" class="hidden"></div>
 				<div id="messages"></div>
+				<div id="listview" class="hidden">
+					<div id="listview-bar">
+						<input type="text" id="listview-search" placeholder="Search channels &amp; topics" spellcheck="false" autocapitalize="off" autocomplete="off">
+						<div id="listview-buttons">
+							<button type="button" data-sort="users">Users</button>
+							<button type="button" data-sort="name">Name</button>
+							<button type="button" id="listview-refresh">Refresh</button>
+							<button type="button" id="listview-close">Close</button>
+						</div>
+					</div>
+					<div id="listview-status"></div>
+					<div id="listview-rows"></div>
+				</div>
 			</div>
 			<div class="resizer" id="resize-nicklist"></div>
 			<div id="nicklist"></div>

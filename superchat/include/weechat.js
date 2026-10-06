@@ -18,7 +18,8 @@
 	let callbacks = {};
 	let queue = Promise.resolve();
 	let lastActiveName = null;
-	let pendingQuery = null;
+	let pendingSwitch = null;
+	const listState = {};
 	let completion = null;
 
 	const loginEl   = document.getElementById('login');
@@ -508,7 +509,7 @@
 			isChan: !!b.nicklist,
 			nick: (b.local_variables && b.local_variables.nick) || '',
 			vars: b.local_variables || {},
-			hidden: !!b.hidden,
+			hidden: !!b.hidden || /^irc\.list_/.test(b.full_name),
 			loaded: false, loading: false, pending: [],
 			nicksLoaded: false
 		};
@@ -621,6 +622,11 @@
 			SC.updateTopicBar();
 			SC.updateInputNick();
 		}
+		// WeeChat's list buffer gets cleared then re-titled once the whole channel list has arrived
+		if (b.title !== undefined && /^irc\.list_/.test(win.fullName)) {
+			const st = listState[win.fullName.substring(9)];
+			if (st && st.cleared) readList(win.fullName.substring(9), ptr);
+		}
 	}
 
 	// ============================================================
@@ -686,9 +692,13 @@
 				const ptr = b.__path[0];
 				SC.windows[ptr] = bufferWindow(b, ptr);
 				const lv = b.local_variables || {};
-				if (pendingQuery && lv.type === 'private' && lv.channel && lv.channel.toLowerCase() === pendingQuery.toLowerCase()) {
-					pendingQuery = null;
+				if (pendingSwitch && lv.type === pendingSwitch.type && lv.channel && lv.channel.toLowerCase() === pendingSwitch.name.toLowerCase()) {
+					pendingSwitch = null;
 					SC.switchWindow(ptr);
+				}
+				if (/^irc\.list_/.test(b.full_name)) {
+					const st = listState[b.full_name.substring(9)];
+					if (st) { st.ptr = ptr; clearTimeout(st.timer); }
 				}
 			});
 			SC.renderChannelList();
@@ -721,6 +731,7 @@
 			items.forEach(function (b) {
 				const win = SC.windows[b.__path[0]];
 				if (!win) return;
+				if (/^irc\.list_/.test(win.fullName) && listState[win.fullName.substring(9)]) listState[win.fullName.substring(9)].cleared = true;
 				win.messages = [];
 				if (SC.getActive() === b.__path[0]) SC.renderMessages();
 			});
@@ -749,7 +760,7 @@
 	// ============================================================
 	function onSwitch(ptr) {
 		const win = SC.windows[ptr];
-		if (!win || !ws) return;
+		if (!win || !ws || win.listView) return;
 		completion = null;
 		if (!win.loaded && !win.loading) loadLines(ptr);
 		if (win.isChan && !win.nicksLoaded) {
@@ -760,7 +771,68 @@
 
 	function input(ptr, text) {
 		completion = null;
+		const win = SC.windows[ptr];
+		if (win && win.listView) ptr = 'irc.server.' + win.listView.server;
 		send('input ' + ptr + ' ' + text);
+	}
+
+	// ============================================================
+	//  Channel list: WeeChat (>= 4.1) builds its own list buffer (irc.list_<server>);
+	//  we hide it and read its lines ("<name> <users>  <topic>") into the list view
+	// ============================================================
+	function listKey(server) {
+		return 'list:' + server;
+	}
+
+	function list(args, server) {
+		const active = SC.windows[SC.getActive()];
+		server = server || (active && active.vars && active.vars.server);
+		if (!server) {
+			for (const k in SC.windows) {
+				if (SC.windows[k].vars && SC.windows[k].vars.type === 'server') { server = SC.windows[k].vars.server; break; }
+			}
+		}
+		if (!server) return;
+		SC.openListWindow(listKey(server), server, true);
+		const st = listState[server] = listState[server] || {};
+		st.cleared = false;
+		for (const k in SC.windows) {
+			if (SC.windows[k].fullName === 'irc.list_' + server) st.ptr = k;
+		}
+		clearTimeout(st.timer);
+		if (!st.ptr) {
+			st.timer = setTimeout(function () {
+				SC.setListChannels(listKey(server), [], true, 'WeeChat did not open a channel list. This needs WeeChat 4.1+ with irc.look.list_buffer on.');
+			}, 10000);
+		}
+		send('input irc.server.' + server + ' /list' + (args ? ' ' + args : ''));
+	}
+
+	function readList(server, ptr) {
+		request('hdata buffer:' + ptr + '/own_lines/first_line(*)/data message', function (msg) {
+			const channels = [];
+			(msg.objects[0] || []).forEach(function (ld) {
+				const m = /^(\S+) +(\d+)  (.*)$/.exec(ld.message || '');
+				if (!m) return;
+				channels.push({ name: stripColors(m[1]), users: parseInt(m[2], 10), topicHtml: SC.linkify(segsHtml(parseColors(m[3]))), plain: stripColors(m[3]) });
+			});
+			SC.setListChannels(listKey(server), channels, true);
+		});
+	}
+
+	function closeList(server) {
+		const st = listState[server];
+		if (st) clearTimeout(st.timer);
+		if (st && st.ptr && SC.windows[st.ptr]) send('input core.weechat /buffer close irc.list_' + server);
+	}
+
+	function join(server, name) {
+		for (const k in SC.windows) {
+			const v = SC.windows[k].vars || {};
+			if (v.type === 'channel' && v.server === server && v.channel && v.channel.toLowerCase() === name.toLowerCase()) return SC.switchWindow(k);
+		}
+		pendingSwitch = { type: 'channel', name: name };
+		send('input irc.server.' + server + ' /join ' + name);
 	}
 
 	function query(nick) {
@@ -769,7 +841,7 @@
 			const v = SC.windows[k].vars;
 			if (v.type === 'private' && v.server === server && v.channel && v.channel.toLowerCase() === nick.toLowerCase()) return SC.switchWindow(k);
 		}
-		pendingQuery = nick;
+		pendingSwitch = { type: 'private', name: nick };
 		input(SC.getActive(), '/query ' + nick);
 	}
 
@@ -814,6 +886,9 @@
 		onSwitch: onSwitch,
 		input: input,
 		query: query,
+		list: list,
+		closeList: closeList,
+		join: join,
 		complete: complete,
 		updateTopicBar: updateTopicBar
 	};
