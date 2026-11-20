@@ -16,6 +16,9 @@ A client-side JavaScript IRC client that connects through WebSocket gateways. No
 - Full mIRC color code support for formatted text
 - Mobile responsive with adjustable font sizes
 - Connect to any WebSocket-enabled IRC network
+- WeeChat relay client mode *(use your own WeeChat as the backend)*
+- Searchable, sortable channel list *(click a channel to join)*
+- Installable as an app on desktop & mobile *(PWA)*
 - Cookie-based settings persistence
 - Auto-reconnect when disconnected
 - Toggle chan/nick list boxes and adjustable font size on mobile
@@ -63,6 +66,21 @@ To connect to secure WSS servers, either:
 
 When using a reverse proxy, ensure it forwards the client's real IP address (use `X-Forwarded-For` or `X-Real-IP` headers) so IRC servers don't see all connections coming from your proxy's IP.
 
+## WeeChat relay mode
+
+Pick **WeeChat relay** on the login screen to connect to your own WeeChat instead of an IRC server. All of your WeeChat buffers, history and nick lists show up in the browser, and WeeChat stays connected when you close the tab.
+
+Requires WeeChat 4.0+ *(4.1+ for the channel list)* with a `weechat` protocol relay over TLS:
+
+```
+/secure set relay YOUR_PASSWORD
+/set relay.network.password "${sec.data.relay}"
+/relay add tls.weechat 9001
+/save
+```
+
+The relay needs a valid TLS certificate. Click the **?** button next to the port field on the login screen for a full setup guide, including automatic Let's Encrypt renewal. TOTP is supported.
+
 ### Help Build the Network List
 
 We're creating a dropdown list of WebSocket-enabled IRC networks for easy connection. If your network supports WebSockets, [open an issue on GitHub](https://github.com/supernets/superchat/issues) with the following details:
@@ -75,7 +93,3 @@ Your contribution helps make IRC more accessible to browser-based users!
 
 ### GrapheneOS Note
 If using GrapheneOS/Vanadium browser, you must enable JIT permissions for WebSocket connections to work properly.
-
----
-
-###### Mirrors: [SuperNETs](https://git.supernets.org/supernets/superchat) • [GitHub](https://github.com/supernets/superchat) • [GitLab](https://gitlab.com/supernets/superchat) • [Codeberg](https://codeberg.org/supernets/superchat)

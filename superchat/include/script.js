@@ -30,6 +30,7 @@
 	let notificationsEnabled = false;
 	let fontSize = 12;
 	let reconnectTimer = null;
+	let quitting = false;
 	let wcMode = false;
 
 	// --- Notification sound (short beep generated via AudioContext) ---
@@ -65,7 +66,7 @@
 		if (!notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
 		if (document.hasFocus()) return;
 		try {
-			const n = new Notification(title, { body: body, icon: 'logo.png', tag: 'irc-mention' });
+			const n = new Notification(title, { body: body, icon: './include/logo.png', tag: 'irc-mention' });
 			setTimeout(function () { n.close(); }, 5000);
 		} catch (e) { /* ignore */ }
 	}
@@ -251,6 +252,7 @@
 				if (text[i] === '&')      out += '&amp;';
 				else if (text[i] === '<') out += '&lt;';
 				else if (text[i] === '>') out += '&gt;';
+				else if (text[i] === '"') out += '&quot;';
 				else                       out += text[i];
 				i++;
 			}
@@ -301,7 +303,6 @@
 		renderNickList();
 		updateInputNick();
 		updateTopicBar();
-		updateStatusBar();
 		updateListView();
 		if (wcMode) WeeChat.onSwitch(name);
 		// Don't auto-focus input on mobile
@@ -507,10 +508,6 @@
 		}
 	}
 
-	function updateStatusBar() {
-		// Status bar now only has toggle buttons and the github link — nothing dynamic needed
-	}
-
 	// ============================================================
 	//  IRC protocol
 	// ============================================================
@@ -637,14 +634,18 @@
 			nick = p[0] || nick;
 			addMessage('Status', chatNick('***', '#0f0') + '<span style="color:#0f0">Connected as ' + esc(nick) + '</span>', timestamp);
 			updateInputNick();
-			updateStatusBar();
-			if (autoJoinChannels.length) {
+			// Login channels plus any channel windows still open from before a reconnect
+			const joinList = autoJoinChannels.slice();
+			for (const w in windows) {
+				if (isChanWindow(w) && !joinList.some(function (c) { return c.toLowerCase() === w.toLowerCase(); })) joinList.push(w);
+			}
+			if (joinList.length) {
 				setTimeout(function () {
-					addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">Joining ' + esc(autoJoinChannels.join(', ')) + '...</span>');
+					addMessage('Status', chatNick('***', '#888') + '<span style="color:#888">Joining ' + esc(joinList.join(', ')) + '...</span>');
 				}, 3000);
 				setTimeout(function () {
-					if (registered && autoJoinChannels.length) {
-						send('JOIN ' + autoJoinChannels.join(','));
+					if (registered) {
+						send('JOIN ' + joinList.join(','));
 					}
 				}, 5000);
 			}
@@ -845,7 +846,6 @@
 			if (activeWindow && windows[activeWindow]) renderNickList();
 			if (wasMe) {
 				updateInputNick();
-				updateStatusBar();
 			}
 			break;
 		}
@@ -960,6 +960,11 @@
 			break;
 
 		case '433':
+			// Only auto-retry during registration; a failed /nick later keeps the current nick
+			if (registered) {
+				addMessage(activeWindow, chatNick('!!!', '#f00') + '<span style="color:#f00">' + esc(p.slice(1).join(' ')) + '</span>', timestamp);
+				break;
+			}
 			nick = nick + '_';
 			send('NICK ' + nick);
 			addMessage('Status', chatNick('!!!', '#f00') + '<span style="color:#f00">Nick in use, trying ' + esc(nick) + '</span>', timestamp);
@@ -1022,10 +1027,17 @@
 		};
 
 		ws.onclose = function () {
-			addMessage('Status', chatNick('!!!', '#f00') + '<span style="color:#f00">Disconnected. Reconnecting in 15 seconds...</span>');
 			registered = false;
-			updateStatusBar();
-			
+			// Nick lists are rebuilt from NAMES when channels are rejoined
+			for (const w in windows) windows[w].nicks = [];
+			if (activeWindow && windows[activeWindow]) renderNickList();
+
+			if (quitting) {
+				addMessage('Status', chatNick('!!!', '#f00') + '<span style="color:#f00">Disconnected.</span>');
+				return;
+			}
+			addMessage('Status', chatNick('!!!', '#f00') + '<span style="color:#f00">Disconnected. Reconnecting in 15 seconds...</span>');
+
 			// Clear any existing reconnect timer
 			if (reconnectTimer) {
 				clearTimeout(reconnectTimer);
@@ -1512,6 +1524,7 @@
 				break;
 
 			case 'quit':
+				quitting = true;
 				send('QUIT :' + (argStr || 'Leaving'));
 				break;
 

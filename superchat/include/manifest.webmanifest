@@ -1,6 +1,7 @@
 {
 	"name"             : "SuperChat IRC Gateway",
 	"short_name"       : "SuperChat",
+	"description"      : "Bare minimal WebSocket IRC client and WeeChat relay client",
 	"start_url"        : "../",
 	"display"          : "standalone",
 	"background_color" : "#000000",
